@@ -63,6 +63,11 @@ func New(cfg Config) (Bot, error) {
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 	}
 
+	err = bot.addImagineCommand()
+	if err != nil {
+		return nil, err
+	}
+
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.ApplicationCommandData().Name {
 		case "imagine":
@@ -71,11 +76,6 @@ func New(cfg Config) (Bot, error) {
 			log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
 		}
 	})
-
-	err = bot.addImagineCommand()
-	if err != nil {
-		return nil, err
-	}
 
 	return bot, nil
 }
