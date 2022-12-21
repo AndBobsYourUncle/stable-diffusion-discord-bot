@@ -11,7 +11,7 @@ This is a Discord bot that interfaces with the Automatic1111 API, from this proj
 ## Usage
 
 1. Create a Discord bot and get the token
-2. Add the Discord bot to your Discord server. It needs permissions to post messages, use slash commands, and uploading files.
+2. Add the Discord bot to your Discord server. It needs permissions to post messages, use slash commands, mentioning anyone, and uploading files.
 2. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
 
 ## Commands
