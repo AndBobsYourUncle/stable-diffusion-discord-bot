@@ -46,15 +46,15 @@ func (api *apiImpl) TextToImage(prompt string) (*TextToImageResponse, error) {
 	var jsonData = []byte(`{
 	  "prompt": "` + prompt + `",
 	  "seed": -1,
-	  "sampler_name": "DPM2 a",
+	  "sampler_name": "Euler a",
 	  "batch_size": 1,
-	  "steps": 50,
+	  "steps": 20,
 	  "cfg_scale": 7,
 	  "width": 768,
 	  "height": 768,
 	  "restore_faces": true,
 	  "negative_prompt": "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-	  "sampler_index": "DPM2 a"
+	  "sampler_index": "Euler a"
 	}`)
 
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))

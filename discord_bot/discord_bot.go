@@ -69,11 +69,23 @@ func New(cfg Config) (Bot, error) {
 	}
 
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.ApplicationCommandData().Name {
-		case "imagine":
-			bot.processImagineCommand(s, i)
-		default:
-			log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			switch i.ApplicationCommandData().Name {
+			case "imagine":
+				bot.processImagineCommand(s, i)
+			default:
+				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
+			}
+		case discordgo.InteractionMessageComponent:
+			log.Printf("Message component interaction: %v", i.MessageComponentData())
+
+			switch i.MessageComponentData().CustomID {
+			case "imagine_reroll":
+				bot.processImagineMessageComponent(s, i)
+			default:
+				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
+			}
 		}
 	})
 
@@ -90,15 +102,6 @@ func (b *botImpl) Start() {
 }
 
 func (b *botImpl) teardown() error {
-	for _, v := range b.registeredCommands {
-		log.Printf("Removing command '%s'...", v.Name)
-
-		err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
-		if err != nil {
-			log.Printf("Error deleting '%v' command: %v", v.Name, err)
-		}
-	}
-
 	return b.botSession.Close()
 }
 
@@ -126,6 +129,38 @@ func (b *botImpl) addImagineCommand() error {
 	b.registeredCommands = append(b.registeredCommands, cmd)
 
 	return nil
+}
+
+func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	log.Printf("Message component interaction: %v", i.MessageComponentData())
+
+	prompt := ""
+
+	for _, embed := range i.Message.Embeds {
+		if embed.Title == "prompt" {
+			prompt = embed.Description
+		}
+
+		log.Printf("Embed: %v,%v", embed.Title, embed.Description)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "I'm reimagining that for you...",
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+
+	_, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Prompt:             prompt,
+		DiscordInteraction: i.Interaction,
+	})
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
 }
 
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {

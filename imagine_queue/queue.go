@@ -111,9 +111,8 @@ func (q *queueImpl) processCurrentImagine() {
 			log.Printf("Error processing image: %v\n", err)
 		}
 
-		finishedContent := fmt.Sprintf("<@%s>, here is what I imagined for \"%s\".",
-			q.currentImagine.DiscordInteraction.Member.User.ID,
-			q.currentImagine.Prompt)
+		finishedContent := fmt.Sprintf("<@%s>, here is what I imagined for you.",
+			q.currentImagine.DiscordInteraction.Member.User.ID)
 
 		decodedImage, err := base64.StdEncoding.DecodeString(resp.Images[0])
 		if err != nil {
@@ -122,8 +121,15 @@ func (q *queueImpl) processCurrentImagine() {
 
 		bytesio := bytes.NewBuffer(decodedImage)
 
-		q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
+		_, err = q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
+			Embeds: &[]*discordgo.MessageEmbed{
+				{
+					Type:        discordgo.EmbedTypeRich,
+					Title:       "prompt",
+					Description: q.currentImagine.Prompt,
+				},
+			},
 			Files: []*discordgo.File{
 				{
 					ContentType: "image/png",
@@ -131,7 +137,30 @@ func (q *queueImpl) processCurrentImagine() {
 					Reader:      bytesio,
 				},
 			},
+			Components: &[]discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.Button{
+							// Label is what the user will see on the button.
+							Label: "Re-roll",
+							// Style provides coloring of the button. There are not so many styles tho.
+							Style: discordgo.PrimaryButton,
+							// Disabled allows bot to disable some buttons for users.
+							Disabled: false,
+							// CustomID is a thing telling Discord which data to send when this button will be pressed.
+							CustomID: "imagine_reroll",
+							Emoji: discordgo.ComponentEmoji{
+								Name: "🤷",
+							},
+						},
+					},
+				},
+			},
 		})
+
+		if err != nil {
+			log.Printf("Error editing interaction: %v\n", err)
+		}
 
 		q.mu.Lock()
 		defer q.mu.Unlock()
