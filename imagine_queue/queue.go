@@ -109,17 +109,35 @@ func (q *queueImpl) processCurrentImagine() {
 		resp, err := q.stableDiffusionAPI.TextToImage(q.currentImagine.Prompt)
 		if err != nil {
 			log.Printf("Error processing image: %v\n", err)
+
+			errorContent := "I'm sorry, but I had a problem imagining your image."
+
+			_, err = q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
+				Content: &errorContent,
+			})
+
+			return
 		}
 
 		finishedContent := fmt.Sprintf("<@%s>, here is what I imagined for you.",
 			q.currentImagine.DiscordInteraction.Member.User.ID)
 
-		decodedImage, err := base64.StdEncoding.DecodeString(resp.Images[0])
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
+		attachedImages := make([]*discordgo.File, len(resp.Images))
 
-		bytesio := bytes.NewBuffer(decodedImage)
+		for idx, image := range resp.Images {
+			decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
+			if decodeErr != nil {
+				log.Printf("Error decoding image: %v\n", decodeErr)
+			}
+
+			imageBuf := bytes.NewBuffer(decodedImage)
+
+			attachedImages[idx] = &discordgo.File{
+				ContentType: "image/png",
+				Name:        "imagine.png",
+				Reader:      imageBuf,
+			}
+		}
 
 		_, err = q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
@@ -130,13 +148,7 @@ func (q *queueImpl) processCurrentImagine() {
 					Description: q.currentImagine.Prompt,
 				},
 			},
-			Files: []*discordgo.File{
-				{
-					ContentType: "image/png",
-					Name:        "imagine.png",
-					Reader:      bytesio,
-				},
-			},
+			Files: attachedImages,
 			Components: &[]discordgo.MessageComponent{
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
@@ -157,7 +169,6 @@ func (q *queueImpl) processCurrentImagine() {
 				},
 			},
 		})
-
 		if err != nil {
 			log.Printf("Error editing interaction: %v\n", err)
 		}

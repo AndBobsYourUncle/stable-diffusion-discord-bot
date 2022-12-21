@@ -48,6 +48,7 @@ func (api *apiImpl) TextToImage(prompt string) (*TextToImageResponse, error) {
 	  "seed": -1,
 	  "sampler_name": "Euler a",
 	  "batch_size": 1,
+      "n_iter": 1,
 	  "steps": 20,
 	  "cfg_scale": 7,
 	  "width": 768,
