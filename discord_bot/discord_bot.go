@@ -1,10 +1,14 @@
 package discord_bot
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/png_info_extractor"
 	"stable_diffusion_bot/stable_diffusion_api"
 
 	"github.com/bwmarrin/discordgo"
@@ -78,8 +82,6 @@ func New(cfg Config) (Bot, error) {
 				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
 			}
 		case discordgo.InteractionMessageComponent:
-			log.Printf("Message component interaction: %v", i.MessageComponentData())
-
 			switch i.MessageComponentData().CustomID {
 			case "imagine_reroll":
 				bot.processImagineMessageComponent(s, i)
@@ -134,16 +136,6 @@ func (b *botImpl) addImagineCommand() error {
 func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	log.Printf("Message component interaction: %v", i.MessageComponentData())
 
-	prompt := ""
-
-	for _, embed := range i.Message.Embeds {
-		if embed.Title == "prompt" {
-			prompt = embed.Description
-		}
-
-		log.Printf("Embed: %v,%v", embed.Title, embed.Description)
-	}
-
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -152,6 +144,42 @@ func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discor
 	})
 	if err != nil {
 		log.Printf("Error responding to interaction: %v", err)
+	}
+
+	prompt := ""
+
+	for _, attachment := range i.Message.Attachments {
+		log.Printf("Message URL: %v", attachment.URL)
+
+		response, pngErr := http.Get(attachment.URL)
+		if pngErr != nil {
+			log.Printf("Error getting image: %v", pngErr)
+
+			return
+		}
+
+		defer response.Body.Close()
+
+		attachmentReader := bufio.NewReader(response.Body)
+
+		attachmentBytes, pngErr := io.ReadAll(attachmentReader)
+		if pngErr != nil {
+			log.Printf("Error reading attachment: %v", pngErr)
+		}
+
+		pngExtractor, pngErr := png_info_extractor.New(png_info_extractor.Config{PngData: attachmentBytes})
+		if pngErr != nil {
+			log.Printf("Error extracting PNG data: %v", pngErr)
+		}
+
+		pngInfo, pngErr := pngExtractor.ExtractDiffusionInfo()
+		if pngErr != nil {
+			log.Printf("Error extracting PNG data: %v", pngErr)
+		}
+
+		prompt = pngInfo.Prompt
+
+		break
 	}
 
 	_, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{

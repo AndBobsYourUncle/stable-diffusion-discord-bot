@@ -119,8 +119,10 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		finishedContent := fmt.Sprintf("<@%s>, here is what I imagined for you.",
-			q.currentImagine.DiscordInteraction.Member.User.ID)
+		finishedContent := fmt.Sprintf("<@%s> asked me to reimagine \"%s\", here is what I imagined for them.",
+			q.currentImagine.DiscordInteraction.Member.User.ID,
+			q.currentImagine.Prompt,
+		)
 
 		attachedImages := make([]*discordgo.File, len(resp.Images))
 
@@ -141,14 +143,7 @@ func (q *queueImpl) processCurrentImagine() {
 
 		_, err = q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
-			Embeds: &[]*discordgo.MessageEmbed{
-				{
-					Type:        discordgo.EmbedTypeRich,
-					Title:       "prompt",
-					Description: q.currentImagine.Prompt,
-				},
-			},
-			Files: attachedImages,
+			Files:   attachedImages,
 			Components: &[]discordgo.MessageComponent{
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
