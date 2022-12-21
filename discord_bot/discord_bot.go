@@ -63,7 +63,7 @@ func New(cfg Config) (Bot, error) {
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 	}
 
-	bot.botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.ApplicationCommandData().Name {
 		case "imagine":
 			bot.processImagineCommand(s, i)
@@ -71,8 +71,6 @@ func New(cfg Config) (Bot, error) {
 			log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
 		}
 	})
-
-	log.Println("Adding commands...")
 
 	err = bot.addImagineCommand()
 	if err != nil {
@@ -92,9 +90,9 @@ func (b *botImpl) Start() {
 }
 
 func (b *botImpl) teardown() error {
-	log.Println("Removing commands...")
-
 	for _, v := range b.registeredCommands {
+		log.Printf("Removing command '%s'...", v.Name)
+
 		err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
 		if err != nil {
 			log.Printf("Error deleting '%v' command: %v", v.Name, err)
@@ -105,6 +103,8 @@ func (b *botImpl) teardown() error {
 }
 
 func (b *botImpl) addImagineCommand() error {
+	log.Printf("Adding command 'imagine'...")
+
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
 		Name:        "imagine",
 		Description: "Ask the bot to imagine something",
