@@ -1,6 +1,7 @@
 package discord_bot
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"stable_diffusion_bot/imagine_queue"
@@ -23,6 +24,18 @@ type Config struct {
 }
 
 func New(cfg Config) (Bot, error) {
+	if cfg.BotToken == "" {
+		return nil, errors.New("missing bot token")
+	}
+
+	if cfg.GuildID == "" {
+		return nil, errors.New("missing guild ID")
+	}
+
+	if cfg.StableDiffusionAPI == nil {
+		return nil, errors.New("missing stable diffusion API")
+	}
+
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
 	if err != nil {
 		return nil, err
@@ -33,7 +46,7 @@ func New(cfg Config) (Bot, error) {
 	})
 	err = botSession.Open()
 	if err != nil {
-		log.Fatalf("Cannot open the session: %v", err)
+		return nil, err
 	}
 
 	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
@@ -116,10 +129,8 @@ func (b *botImpl) addImagineCommand() error {
 }
 
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	// Access options in the order provided by the user.
 	options := i.ApplicationCommandData().Options
 
-	// Or convert the slice into a map
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 	for _, opt := range options {
 		optionMap[opt.Name] = opt
@@ -129,8 +140,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var queueError error
 	var prompt string
 
-	// Get the value from the option map.
-	// When the option exists, ok = true
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
 
@@ -139,7 +148,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			DiscordInteraction: i.Interaction,
 		})
 		if queueError != nil {
-			log.Printf("Cannot add imagine to queue: %v\n", queueError)
+			log.Printf("Error adding imagine to queue: %v\n", queueError)
 		}
 	}
 

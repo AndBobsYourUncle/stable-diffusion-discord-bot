@@ -18,7 +18,7 @@ type Config struct {
 
 func New(cfg Config) (StableDiffusionAPI, error) {
 	if cfg.Host == "" {
-		return nil, errors.New("missing host URL")
+		return nil, errors.New("missing host")
 	}
 
 	return &apiImpl{

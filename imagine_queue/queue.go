@@ -30,11 +30,11 @@ type Config struct {
 
 func New(cfg Config) (Queue, error) {
 	if cfg.BotSession == nil {
-		return nil, errors.New("bot session is nil")
+		return nil, errors.New("missing bot session")
 	}
 
 	if cfg.StableDiffusionAPI == nil {
-		return nil, errors.New("stable diffusion API is nil")
+		return nil, errors.New("missing stable diffusion API")
 	}
 
 	return &queueImpl{
@@ -53,10 +53,6 @@ func (q *queueImpl) AddImagine(item *QueueItem) (int, error) {
 	q.queue <- item
 
 	linePosition := len(q.queue)
-
-	if q.currentImagine == nil {
-		q.pullNextInQueue()
-	}
 
 	return linePosition, nil
 }
@@ -112,7 +108,7 @@ func (q *queueImpl) processCurrentImagine() {
 
 		resp, err := q.stableDiffusionAPI.TextToImage(q.currentImagine.Prompt)
 		if err != nil {
-			log.Printf("Error processing imagine: %v\n", err)
+			log.Printf("Error processing image: %v\n", err)
 		}
 
 		finishedContent := fmt.Sprintf("<@%s>, here is what I imagined for \"%s\".",
@@ -121,7 +117,7 @@ func (q *queueImpl) processCurrentImagine() {
 
 		decodedImage, err := base64.StdEncoding.DecodeString(resp.Images[0])
 		if err != nil {
-			log.Printf("Error decoding imagine: %v\n", err)
+			log.Printf("Error decoding image: %v\n", err)
 		}
 
 		bytesio := bytes.NewBuffer(decodedImage)

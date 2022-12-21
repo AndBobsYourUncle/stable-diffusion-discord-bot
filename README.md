@@ -28,3 +28,19 @@ After the webui has finished processing the prompt, the bot will then update the
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+There are lots more features that could be added to this bot, such as:
+
+- Image to image processing
+- Ability to easily re-roll an image
+- Generating multiple images at once
+- Moving defaults to a config file
+- Ability to upscale the resulting images
+
+I'll probably be adding a few of these over time, but any contributions are also welcome.
+
+## Why Go?
+
+I like Go a lot better than Python, and for me it's a lot easier to maintain dependencies with Go modules versus running a bunch of different Anaconda environments.
+
+It's also able to be cross-compiled to a wide range of platforms, which is nice.
