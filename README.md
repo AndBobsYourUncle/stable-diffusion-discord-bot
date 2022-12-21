@@ -32,11 +32,12 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 There are lots more features that could be added to this bot, such as:
 
-- Image to image processing
+- Moving defaults to a config file
 - Ability to easily re-roll an image
 - Generating multiple images at once
-- Moving defaults to a config file
 - Ability to upscale the resulting images
+- Ability to tweak more settings when issuing the `/imagine` command
+- Image to image processing
 
 I'll probably be adding a few of these over time, but any contributions are also welcome.
 
