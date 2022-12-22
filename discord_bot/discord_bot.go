@@ -182,6 +182,12 @@ func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discor
 		break
 	}
 
+	if prompt == "" {
+		log.Printf("Error: no prompt found in message")
+
+		return
+	}
+
 	_, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 		Prompt:             prompt,
 		DiscordInteraction: i.Interaction,
