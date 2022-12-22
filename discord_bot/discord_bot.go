@@ -1,29 +1,29 @@
 package discord_bot
 
 import (
-	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"stable_diffusion_bot/imagine_queue"
-	"stable_diffusion_bot/png_info_extractor"
+	"stable_diffusion_bot/repositories/image_generations"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type botImpl struct {
-	botSession         *discordgo.Session
-	guildID            string
-	imagineQueue       imagine_queue.Queue
-	registeredCommands []*discordgo.ApplicationCommand
+	botSession          *discordgo.Session
+	guildID             string
+	imagineQueue        imagine_queue.Queue
+	imageGenerationRepo image_generations.Repository
+	registeredCommands  []*discordgo.ApplicationCommand
 }
 
 type Config struct {
-	BotToken     string
-	GuildID      string
-	ImagineQueue imagine_queue.Queue
+	BotToken            string
+	GuildID             string
+	ImagineQueue        imagine_queue.Queue
+	ImageGenerationRepo image_generations.Repository
 }
 
 func New(cfg Config) (Bot, error) {
@@ -37,6 +37,10 @@ func New(cfg Config) (Bot, error) {
 
 	if cfg.ImagineQueue == nil {
 		return nil, errors.New("missing imagine queue")
+	}
+
+	if cfg.ImageGenerationRepo == nil {
+		return nil, errors.New("missing image generation repo")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
@@ -53,9 +57,10 @@ func New(cfg Config) (Bot, error) {
 	}
 
 	bot := &botImpl{
-		botSession:         botSession,
-		imagineQueue:       cfg.ImagineQueue,
-		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
+		botSession:          botSession,
+		imagineQueue:        cfg.ImagineQueue,
+		imageGenerationRepo: cfg.ImageGenerationRepo,
+		registeredCommands:  make([]*discordgo.ApplicationCommand, 0),
 	}
 
 	err = bot.addImagineCommand()
@@ -125,8 +130,6 @@ func (b *botImpl) addImagineCommand() error {
 }
 
 func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	log.Printf("Message component interaction: %v", i.MessageComponentData())
-
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -137,50 +140,19 @@ func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discor
 		log.Printf("Error responding to interaction: %v", err)
 	}
 
-	prompt := ""
+	log.Printf("Reimagining interaction: %v", i.Message.Interaction.ID)
 
-	for _, attachment := range i.Message.Attachments {
-		log.Printf("Message URL: %v", attachment.URL)
-
-		response, pngErr := http.Get(attachment.URL)
-		if pngErr != nil {
-			log.Printf("Error getting image: %v", pngErr)
-
-			return
-		}
-
-		defer response.Body.Close()
-
-		attachmentReader := bufio.NewReader(response.Body)
-
-		attachmentBytes, pngErr := io.ReadAll(attachmentReader)
-		if pngErr != nil {
-			log.Printf("Error reading attachment: %v", pngErr)
-		}
-
-		pngExtractor, pngErr := png_info_extractor.New(png_info_extractor.Config{PngData: attachmentBytes})
-		if pngErr != nil {
-			log.Printf("Error extracting PNG data: %v", pngErr)
-		}
-
-		pngInfo, pngErr := pngExtractor.ExtractDiffusionInfo()
-		if pngErr != nil {
-			log.Printf("Error extracting PNG data: %v", pngErr)
-		}
-
-		prompt = pngInfo.Prompt
-
-		break
-	}
-
-	if prompt == "" {
-		log.Printf("Error: no prompt found in message")
+	generation, err := b.imageGenerationRepo.GetByInteraction(context.Background(), i.Message.Interaction.ID)
+	if err != nil {
+		log.Printf("Error getting image generation: %v", err)
 
 		return
 	}
 
+	log.Printf("Found generation: %v", generation)
+
 	_, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-		Prompt:             prompt,
+		Prompt:             generation.Prompt,
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {

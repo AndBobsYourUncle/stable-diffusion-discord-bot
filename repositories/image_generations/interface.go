@@ -7,5 +7,5 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error)
-	Get(ctx context.Context, id int64) (*entities.ImageGeneration, error)
+	GetByInteraction(ctx context.Context, interactionID string) (*entities.ImageGeneration, error)
 }
