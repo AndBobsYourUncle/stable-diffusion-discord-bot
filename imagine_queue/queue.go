@@ -56,8 +56,16 @@ func New(cfg Config) (Queue, error) {
 	}, nil
 }
 
+type ItemType int
+
+const (
+	ItemTypeImagine ItemType = iota
+	ItemTypeReroll
+)
+
 type QueueItem struct {
 	Prompt             string
+	Type               ItemType
 	DiscordInteraction *discordgo.Interaction
 }
 
@@ -110,11 +118,35 @@ func (q *queueImpl) pullNextInQueue() {
 
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
-		log.Printf("Processing imagine #%s: %v\n", q.currentImagine.DiscordInteraction.ID, q.currentImagine.Prompt)
+		prompt := q.currentImagine.Prompt
+
+		if q.currentImagine.Type == ItemTypeReroll {
+			interactionID := q.currentImagine.DiscordInteraction.ID
+			messageID := ""
+
+			if q.currentImagine.DiscordInteraction.Message != nil {
+				messageID = q.currentImagine.DiscordInteraction.Message.ID
+			}
+
+			log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
+
+			generation, err := q.imageGenerationRepo.GetByMessage(context.Background(), messageID)
+			if err != nil {
+				log.Printf("Error getting image generation: %v", err)
+
+				return
+			}
+
+			log.Printf("Found generation: %v", generation)
+
+			prompt = generation.Prompt
+		}
+
+		log.Printf("Processing imagine #%s: %v\n", q.currentImagine.DiscordInteraction.ID, prompt)
 
 		newContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them.",
 			q.currentImagine.DiscordInteraction.Member.User.ID,
-			q.currentImagine.Prompt)
+			prompt)
 
 		message, err := q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &newContent,
@@ -128,7 +160,7 @@ func (q *queueImpl) processCurrentImagine() {
 			MessageID:     message.ID,
 			MemberID:      q.currentImagine.DiscordInteraction.Member.User.ID,
 			SortOrder:     0,
-			Prompt:        q.currentImagine.Prompt,
+			Prompt:        prompt,
 			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
@@ -181,9 +213,9 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		finishedContent := fmt.Sprintf("<@%s> asked me to reimagine \"%s\", here is what I imagined for them.",
+		finishedContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
 			q.currentImagine.DiscordInteraction.Member.User.ID,
-			q.currentImagine.Prompt,
+			prompt,
 		)
 
 		log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)

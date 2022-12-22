@@ -1,7 +1,6 @@
 package discord_bot
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -130,40 +129,22 @@ func (b *botImpl) addImagineCommand() error {
 }
 
 func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "I'm reimagining that for you...",
-		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
-
-	interactionID := i.Interaction.ID
-	messageID := ""
-
-	if i.Message != nil {
-		messageID = i.Message.ID
-	}
-
-	log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
-
-	generation, err := b.imageGenerationRepo.GetByMessage(context.Background(), messageID)
-	if err != nil {
-		log.Printf("Error getting image generation: %v", err)
-
-		return
-	}
-
-	log.Printf("Found generation: %v", generation)
-
-	_, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-		Prompt:             generation.Prompt,
+	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Type:               imagine_queue.ItemTypeReroll,
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {
 		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("I'm reimagining that for you... You are currently #%d in line.", position),
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
 	}
 }
 
@@ -184,6 +165,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
+			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})
 		if queueError != nil {
