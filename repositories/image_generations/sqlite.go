@@ -16,6 +16,10 @@ const getGenerationByMessageID string = `
 SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE message_id = ?;
 `
 
+const getGenerationByMessageIDAndSortOrder string = `
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE message_id = ? AND sort_order = ?;
+`
+
 type sqliteRepo struct {
 	dbConn *sql.DB
 	clock  clock.Clock
@@ -64,6 +68,21 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 	var generation entities.ImageGeneration
 
 	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageID, messageID).Scan(
+		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
+		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
+		&generation.EnableHR, &generation.DenoisingStrength, &generation.BatchSize, &generation.Seed, &generation.Subseed,
+		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &generation, nil
+}
+
+func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGeneration, error) {
+	var generation entities.ImageGeneration
+
+	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageIDAndSortOrder, messageID, sortOrder).Scan(
 		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
 		&generation.EnableHR, &generation.DenoisingStrength, &generation.BatchSize, &generation.Seed, &generation.Subseed,
