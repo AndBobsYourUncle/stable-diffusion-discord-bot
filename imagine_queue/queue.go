@@ -2,12 +2,15 @@ package imagine_queue
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"sync"
 	"time"
@@ -16,31 +19,32 @@ import (
 )
 
 type queueImpl struct {
-	botSession         *discordgo.Session
-	stableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
-	queue              chan *QueueItem
-	currentImagine     *QueueItem
-	mu                 sync.Mutex
+	botSession          *discordgo.Session
+	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
+	queue               chan *QueueItem
+	currentImagine      *QueueItem
+	mu                  sync.Mutex
+	imageGenerationRepo image_generations.Repository
 }
 
 type Config struct {
-	BotSession         *discordgo.Session
-	StableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
+	StableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
+	ImageGenerationRepo image_generations.Repository
 }
 
 func New(cfg Config) (Queue, error) {
-	if cfg.BotSession == nil {
-		return nil, errors.New("missing bot session")
-	}
-
 	if cfg.StableDiffusionAPI == nil {
 		return nil, errors.New("missing stable diffusion API")
 	}
 
+	if cfg.ImageGenerationRepo == nil {
+		return nil, errors.New("missing image generation repository")
+	}
+
 	return &queueImpl{
-		botSession:         cfg.BotSession,
-		stableDiffusionAPI: cfg.StableDiffusionAPI,
-		queue:              make(chan *QueueItem, 100),
+		stableDiffusionAPI:  cfg.StableDiffusionAPI,
+		imageGenerationRepo: cfg.ImageGenerationRepo,
+		queue:               make(chan *QueueItem, 100),
 	}, nil
 }
 
@@ -57,7 +61,9 @@ func (q *queueImpl) AddImagine(item *QueueItem) (int, error) {
 	return linePosition, nil
 }
 
-func (q *queueImpl) StartPolling() {
+func (q *queueImpl) StartPolling(botSession *discordgo.Session) {
+	q.botSession = botSession
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
@@ -96,7 +102,7 @@ func (q *queueImpl) pullNextInQueue() {
 
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
-		log.Printf("Processing imagine: %v\n", q.currentImagine.Prompt)
+		log.Printf("Processing imagine #%s: %v\n", q.currentImagine.DiscordInteraction.ID, q.currentImagine.Prompt)
 
 		newContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them.",
 			q.currentImagine.DiscordInteraction.Member.User.ID,
@@ -106,7 +112,51 @@ func (q *queueImpl) processCurrentImagine() {
 			Content: &newContent,
 		})
 
-		resp, err := q.stableDiffusionAPI.TextToImage(q.currentImagine.Prompt)
+		newGeneration := &entities.ImageGeneration{
+			InteractionID: q.currentImagine.DiscordInteraction.ID,
+			MemberID:      q.currentImagine.DiscordInteraction.Member.User.ID,
+			SortOrder:     0,
+			Prompt:        q.currentImagine.Prompt,
+			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+			Width:             768,
+			Height:            768,
+			RestoreFaces:      true,
+			EnableHR:          true,
+			DenoisingStrength: 0.7,
+			BatchSize:         1,
+			Seed:              -1,
+			Subseed:           -1,
+			SubseedStrength:   0,
+			SamplerName:       "Euler a",
+			CfgScale:          7,
+			Steps:             20,
+			Processed:         false,
+		}
+
+		_, err := q.imageGenerationRepo.Create(context.Background(), newGeneration)
+		if err != nil {
+			log.Printf("Error creating image generation record: %v\n", err)
+		}
+
+		resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
+			Prompt:            newGeneration.Prompt,
+			NegativePrompt:    newGeneration.NegativePrompt,
+			Width:             newGeneration.Width,
+			Height:            newGeneration.Height,
+			RestoreFaces:      newGeneration.RestoreFaces,
+			EnableHR:          newGeneration.EnableHR,
+			DenoisingStrength: newGeneration.DenoisingStrength,
+			BatchSize:         newGeneration.BatchSize,
+			Seed:              newGeneration.Seed,
+			Subseed:           newGeneration.Subseed,
+			SubseedStrength:   newGeneration.SubseedStrength,
+			SamplerName:       newGeneration.SamplerName,
+			CfgScale:          newGeneration.CfgScale,
+			Steps:             newGeneration.Steps,
+			NIter:             4,
+		})
 		if err != nil {
 			log.Printf("Error processing image: %v\n", err)
 

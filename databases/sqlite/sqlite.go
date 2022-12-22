@@ -1,0 +1,172 @@
+package sqlite
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+const dbFile string = "sd_discord_bot.sqlite"
+
+const getCurrentMigration string = `PRAGMA user_version;`
+const setCurrentMigration string = `PRAGMA user_version = ?;`
+
+const createGenerationTableIfNotExistsQuery string = `
+CREATE TABLE IF NOT EXISTS image_generations (
+id INTEGER NOT NULL PRIMARY KEY,
+interaction_id TEXT NOT NULL,
+member_id TEXT NOT NULL,
+sort_order INTEGER NOT NULL,
+prompt TEXT NOT NULL,
+negative_prompt TEXT NOT NULL,
+width INTEGER NOT NULL,
+height INTEGER NOT NULL,
+restore_faces INTEGER NOT NULL,
+enable_hr INTEGER NOT NULL,
+denoising_strength REAL NOT NULL,
+batch_size INTEGER NOT NULL,
+seed INTEGER NOT NULL,
+subseed INTEGER NOT NULL,
+subseed_strength REAL NOT NULL,
+sampler_name TEXT NOT NULL,
+cfg_scale REAL NOT NULL,
+steps INTEGER NOT NULL,
+processed INTEGER NOT NULL,
+created_at DATETIME NOT NULL
+);`
+
+const createInteractionIndexIfNotExistsQuery string = `
+CREATE INDEX IF NOT EXISTS generation_interaction_index 
+ON image_generations(interaction_id);
+`
+
+type migration struct {
+	migrationName  string
+	migrationQuery string
+}
+
+var migrations = []migration{
+	{migrationName: "create generation table", migrationQuery: createGenerationTableIfNotExistsQuery},
+	{migrationName: "add generation interaction index", migrationQuery: createInteractionIndexIfNotExistsQuery},
+}
+
+func New(ctx context.Context) (*sql.DB, error) {
+	filename, err := DBFilename()
+	if err != nil {
+		return nil, err
+	}
+
+	err = touchDBFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := sql.Open("sqlite3", filename)
+	if err != nil {
+		return nil, err
+	}
+
+	err = migrate(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func migrate(ctx context.Context, db *sql.DB) error {
+	var currentMigration int
+
+	row := db.QueryRowContext(ctx, getCurrentMigration)
+
+	err := row.Scan(&currentMigration)
+	if err != nil {
+		return err
+	}
+
+	requiredMigration := len(migrations)
+
+	log.Printf("Current DB version: %v, required DB version: %v\n", currentMigration, requiredMigration)
+
+	if currentMigration < requiredMigration {
+		for migrationNum := currentMigration + 1; migrationNum <= requiredMigration; migrationNum++ {
+			err = execMigration(ctx, db, migrationNum)
+			if err != nil {
+				log.Printf("Error running migration %v '%v'\n", migrationNum, migrations[migrationNum-1].migrationName)
+
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func execMigration(ctx context.Context, db *sql.DB, migrationNum int) error {
+	log.Printf("Running migration %v '%v'\n", migrationNum, migrations[migrationNum-1].migrationName)
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	//nolint
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, migrations[migrationNum-1].migrationQuery)
+	if err != nil {
+		return err
+	}
+
+	setQuery := strings.Replace(setCurrentMigration, "?", strconv.Itoa(migrationNum), 1)
+
+	_, err = tx.ExecContext(ctx, setQuery)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func DBFilename() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	//ex, err := os.Executable()
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//exPath := filepath.Dir(ex)
+
+	return dir + "/" + dbFile, nil
+}
+
+func touchDBFile(filename string) error {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		file, createErr := os.Create(filename)
+		if createErr != nil {
+			return createErr
+		}
+
+		closeErr := file.Close()
+		if closeErr != nil {
+			return closeErr
+		}
+	}
+
+	return nil
+}

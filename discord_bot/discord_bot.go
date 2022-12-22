@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/png_info_extractor"
-	"stable_diffusion_bot/stable_diffusion_api"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -22,9 +21,9 @@ type botImpl struct {
 }
 
 type Config struct {
-	BotToken           string
-	GuildID            string
-	StableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
+	BotToken     string
+	GuildID      string
+	ImagineQueue imagine_queue.Queue
 }
 
 func New(cfg Config) (Bot, error) {
@@ -36,8 +35,8 @@ func New(cfg Config) (Bot, error) {
 		return nil, errors.New("missing guild ID")
 	}
 
-	if cfg.StableDiffusionAPI == nil {
-		return nil, errors.New("missing stable diffusion API")
+	if cfg.ImagineQueue == nil {
+		return nil, errors.New("missing imagine queue")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
@@ -53,17 +52,9 @@ func New(cfg Config) (Bot, error) {
 		return nil, err
 	}
 
-	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
-		BotSession:         botSession,
-		StableDiffusionAPI: cfg.StableDiffusionAPI,
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	bot := &botImpl{
 		botSession:         botSession,
-		imagineQueue:       imagineQueue,
+		imagineQueue:       cfg.ImagineQueue,
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 	}
 
@@ -95,7 +86,7 @@ func New(cfg Config) (Bot, error) {
 }
 
 func (b *botImpl) Start() {
-	b.imagineQueue.StartPolling()
+	b.imagineQueue.StartPolling(b.botSession)
 
 	err := b.teardown()
 	if err != nil {

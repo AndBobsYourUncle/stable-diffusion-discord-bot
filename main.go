@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
+	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
 )
 
@@ -29,6 +33,18 @@ func main() {
 		log.Fatalf("API host is required")
 	}
 
+	ctx := context.Background()
+
+	sqliteDB, err := sqlite.New(ctx)
+	if err != nil {
+		log.Fatalf("Failed to create sqlite database: %v", err)
+	}
+
+	generationRepo, err := image_generations.NewRepository(&image_generations.Config{DB: sqliteDB})
+	if err != nil {
+		log.Fatalf("Failed to create image generation repository: %v", err)
+	}
+
 	stableDiffusionAPI, err := stable_diffusion_api.New(stable_diffusion_api.Config{
 		Host: *apiHost,
 	})
@@ -36,10 +52,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
+		StableDiffusionAPI:  stableDiffusionAPI,
+		ImageGenerationRepo: generationRepo,
+	})
+	if err != nil {
+		log.Fatalf("Failed to create imagine queue: %v", err)
+	}
+
 	bot, err := discord_bot.New(discord_bot.Config{
-		BotToken:           *botToken,
-		GuildID:            *guildID,
-		StableDiffusionAPI: stableDiffusionAPI,
+		BotToken:     *botToken,
+		GuildID:      *guildID,
+		ImagineQueue: imagineQueue,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)

@@ -42,40 +42,50 @@ type TextToImageResponse struct {
 	Seeds  []int    `json:"all_seeds"`
 }
 
-type textToImageRequest struct {
-	Prompt         string `json:"prompt"`
-	Seed           int    `json:"seed"`
-	SamplerName    string `json:"sampler_name"`
-	BatchSize      int    `json:"batch_size"`
-	NIter          int    `json:"n_iter"`
-	Steps          int    `json:"steps"`
-	CfgScale       int    `json:"cfg_scale"`
-	Width          int    `json:"width"`
-	Height         int    `json:"height"`
-	RestoreFaces   bool   `json:"restore_faces"`
-	NegativePrompt string `json:"negative_prompt"`
-	SamplerIndex   string `json:"sampler_index"`
+type TextToImageRequest struct {
+	Prompt            string  `json:"prompt"`
+	NegativePrompt    string  `json:"negative_prompt"`
+	Width             int     `json:"width"`
+	Height            int     `json:"height"`
+	RestoreFaces      bool    `json:"restore_faces"`
+	EnableHR          bool    `json:"enable_hr"`
+	DenoisingStrength float64 `json:"denoising_strength"`
+	BatchSize         int     `json:"batch_size"`
+	Seed              int     `json:"seed"`
+	Subseed           int     `json:"subseed"`
+	SubseedStrength   float64 `json:"subseed_strength"`
+	SamplerName       string  `json:"sampler_name"`
+	CfgScale          float64 `json:"cfg_scale"`
+	Steps             int     `json:"steps"`
+	NIter             int     `json:"n_iter"`
 }
 
-func (api *apiImpl) TextToImage(prompt string) (*TextToImageResponse, error) {
+func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) {
+	if req == nil {
+		return nil, errors.New("missing request")
+	}
+
 	postURL := api.host + "/sdapi/v1/txt2img"
 
-	req := textToImageRequest{
-		Prompt:       prompt,
-		Seed:         -1,
-		SamplerName:  "Euler a",
-		BatchSize:    1,
-		NIter:        4,
-		Steps:        20,
-		CfgScale:     7,
-		Width:        768,
-		Height:       768,
-		RestoreFaces: true,
-		NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-			"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-			"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-		SamplerIndex: "Euler a",
-	}
+	//req := TextToImageRequest{
+	//	Prompt: prompt,
+	//	NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+	//		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+	//		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+	//	Width:             768,
+	//	Height:            768,
+	//	RestoreFaces:      true,
+	//	EnableHR:          true,
+	//	DenoisingStrength: 0.7,
+	//	BatchSize:         1,
+	//	Seed:              -1,
+	//	Subseed:           -1,
+	//	SubseedStrength:   0,
+	//	SamplerName:       "Euler a",
+	//	CfgScale:          7,
+	//	Steps:             20,
+	//	NIter:             4,
+	//}
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
