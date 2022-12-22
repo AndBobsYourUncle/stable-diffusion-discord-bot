@@ -88,6 +88,14 @@ func New(cfg Config) (Bot, error) {
 				bot.processImagineUpscale(s, i, 3)
 			case "imagine_upscale_4":
 				bot.processImagineUpscale(s, i, 4)
+			case "imagine_variation_1":
+				bot.processImagineVariation(s, i, 1)
+			case "imagine_variation_2":
+				bot.processImagineVariation(s, i, 2)
+			case "imagine_variation_3":
+				bot.processImagineVariation(s, i, 3)
+			case "imagine_variation_4":
+				bot.processImagineVariation(s, i, 4)
 			default:
 				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 			}
@@ -159,7 +167,7 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
 	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 		Type:               imagine_queue.ItemTypeUpscale,
-		UpscaleIndex:       upscaleIndex,
+		InteractionIndex:   upscaleIndex,
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {
@@ -170,6 +178,27 @@ func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.Inter
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("I'm upscaling that for you... You are currently #%d in line.", position),
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
+	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Type:               imagine_queue.ItemTypeVariation,
+		InteractionIndex:   variationIndex,
+		DiscordInteraction: i.Interaction,
+	})
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("I'm imagining more variations for you... You are currently #%d in line.", position),
 		},
 	})
 	if err != nil {

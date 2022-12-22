@@ -62,12 +62,13 @@ const (
 	ItemTypeImagine ItemType = iota
 	ItemTypeReroll
 	ItemTypeUpscale
+	ItemTypeVariation
 )
 
 type QueueItem struct {
 	Prompt             string
 	Type               ItemType
-	UpscaleIndex       int
+	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 }
 
@@ -134,19 +135,26 @@ func (q *queueImpl) processCurrentImagine() {
 		}
 
 		prompt := q.currentImagine.Prompt
+		seed := -1
+		subseedStrength := float64(0)
 
-		if q.currentImagine.Type == ItemTypeReroll {
-			foundPrompt, err := q.getPromptForReroll(q.currentImagine)
+		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
+			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
 			if err != nil {
 				log.Printf("Error getting prompt for reroll: %v", err)
 
 				return
 			}
 
-			prompt = foundPrompt
+			prompt = foundGeneration.Prompt
+
+			if q.currentImagine.Type == ItemTypeVariation {
+				seed = foundGeneration.Seed
+				subseedStrength = 0.15
+			}
 		}
 
-		err := q.processImagineGrid(prompt, q.currentImagine)
+		err := q.processImagineGrid(prompt, seed, subseedStrength, q.currentImagine)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
 
@@ -155,7 +163,7 @@ func (q *queueImpl) processCurrentImagine() {
 	}()
 }
 
-func (q *queueImpl) getPromptForReroll(imagine *QueueItem) (string, error) {
+func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGeneration, error) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -165,19 +173,19 @@ func (q *queueImpl) getPromptForReroll(imagine *QueueItem) (string, error) {
 
 	log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
 
-	generation, err := q.imageGenerationRepo.GetByMessage(context.Background(), messageID)
+	generation, err := q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, sortOrder)
 	if err != nil {
 		log.Printf("Error getting image generation: %v", err)
 
-		return "", err
+		return nil, err
 	}
 
 	log.Printf("Found generation: %v", generation)
 
-	return generation.Prompt, nil
+	return generation, nil
 }
 
-func (q *queueImpl) processImagineGrid(prompt string, imagine *QueueItem) error {
+func (q *queueImpl) processImagineGrid(prompt string, seed int, subseedStrength float64, imagine *QueueItem) error {
 	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, prompt)
 
 	newContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them.",
@@ -206,9 +214,9 @@ func (q *queueImpl) processImagineGrid(prompt string, imagine *QueueItem) error 
 		EnableHR:          true,
 		DenoisingStrength: 0.7,
 		BatchSize:         1,
-		Seed:              -1,
+		Seed:              seed,
 		Subseed:           -1,
-		SubseedStrength:   0,
+		SubseedStrength:   subseedStrength,
 		SamplerName:       "Euler a",
 		CfgScale:          7,
 		Steps:             20,
@@ -332,6 +340,62 @@ func (q *queueImpl) processImagineGrid(prompt string, imagine *QueueItem) error 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
+						Label: "V1",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.SecondaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_variation_1",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "♻️",
+						},
+					},
+					discordgo.Button{
+						// Label is what the user will see on the button.
+						Label: "V2",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.SecondaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_variation_2",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "♻️",
+						},
+					},
+					discordgo.Button{
+						// Label is what the user will see on the button.
+						Label: "V3",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.SecondaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_variation_3",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "♻️",
+						},
+					},
+					discordgo.Button{
+						// Label is what the user will see on the button.
+						Label: "V4",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.SecondaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_variation_4",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "♻️",
+						},
+					},
+				},
+			},
+			discordgo.ActionsRow{
+				Components: []discordgo.MessageComponent{
+					discordgo.Button{
+						// Label is what the user will see on the button.
 						Label: "U1",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
@@ -404,9 +468,9 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	}
 
 	log.Printf("Upscaling image: %v, Message: %v, Upscale Index: %d",
-		interactionID, messageID, imagine.UpscaleIndex)
+		interactionID, messageID, imagine.InteractionIndex)
 
-	generation, err := q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, imagine.UpscaleIndex)
+	generation, err := q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, imagine.InteractionIndex)
 	if err != nil {
 		log.Printf("Error getting image generation: %v", err)
 
@@ -458,7 +522,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	imageBuf := bytes.NewBuffer(decodedImage)
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
-		interactionID, messageID, imagine.UpscaleIndex)
+		interactionID, messageID, imagine.InteractionIndex)
 
 	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
 		imagine.DiscordInteraction.Member.User.ID)
