@@ -68,26 +68,6 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 
 	postURL := api.host + "/sdapi/v1/txt2img"
 
-	//req := TextToImageRequest{
-	//	Prompt: prompt,
-	//	NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-	//		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-	//		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-	//	Width:             768,
-	//	Height:            768,
-	//	RestoreFaces:      true,
-	//	EnableHR:          true,
-	//	DenoisingStrength: 0.7,
-	//	BatchSize:         1,
-	//	Seed:              -1,
-	//	Subseed:           -1,
-	//	SubseedStrength:   0,
-	//	SamplerName:       "Euler a",
-	//	CfgScale:          7,
-	//	Steps:             20,
-	//	NIter:             4,
-	//}
-
 	jsonData, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -130,4 +110,82 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 		Seeds:    infoStruct.AllSeeds,
 		Subseeds: infoStruct.AllSubseeds,
 	}, nil
+}
+
+type UpscaleRequest struct {
+	ResizeMode         int                 `json:"resize_mode"`
+	UpscalingResize    int                 `json:"upscaling_resize"`
+	Upscaler1          string              `json:"upscaler1"`
+	TextToImageRequest *TextToImageRequest `json:"text_to_image_request"`
+}
+
+type upscaleJSONRequest struct {
+	ResizeMode      int    `json:"resize_mode"`
+	UpscalingResize int    `json:"upscaling_resize"`
+	Upscaler1       string `json:"upscaler1"`
+	Image           string `json:"image"`
+}
+
+type UpscaleResponse struct {
+	Image string `json:"image"`
+}
+
+func (api *apiImpl) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error) {
+	if upscaleReq == nil {
+		return nil, errors.New("missing request")
+	}
+
+	textToImageReq := upscaleReq.TextToImageRequest
+
+	if textToImageReq == nil {
+		return nil, errors.New("missing text to image request")
+	}
+
+	textToImageReq.NIter = 1
+
+	regeneratedImage, err := api.TextToImage(textToImageReq)
+	if err != nil {
+		return nil, err
+	}
+
+	jsonReq := &upscaleJSONRequest{
+		ResizeMode:      upscaleReq.ResizeMode,
+		UpscalingResize: upscaleReq.UpscalingResize,
+		Upscaler1:       upscaleReq.Upscaler1,
+		Image:           regeneratedImage.Images[0],
+	}
+
+	postURL := api.host + "/sdapi/v1/extra-single-image"
+
+	jsonData, err := json.Marshal(jsonReq)
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	respStruct := &UpscaleResponse{}
+
+	err = json.Unmarshal(body, respStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	return respStruct, nil
 }

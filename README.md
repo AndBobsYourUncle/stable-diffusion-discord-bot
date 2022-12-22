@@ -35,7 +35,8 @@ There are lots more features that could be added to this bot, such as:
 - [ ] Moving defaults to a config file
 - [x] Ability to easily re-roll an image
 - [x] Generating multiple images at once
-- [ ] Ability to upscale the resulting images
+- [x] Ability to upscale the resulting images
+- [ ] Ability to generate variations on a grid image
 - [ ] Ability to tweak more settings when issuing the `/imagine` command
 - [ ] Image to image processing
 

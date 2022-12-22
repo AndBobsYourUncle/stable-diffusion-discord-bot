@@ -414,4 +414,68 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	}
 
 	log.Printf("Found generation: %v", generation)
+
+	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
+		ResizeMode:      0,
+		UpscalingResize: 4,
+		Upscaler1:       "ESRGAN_4x",
+		TextToImageRequest: &stable_diffusion_api.TextToImageRequest{
+			Prompt:            generation.Prompt,
+			NegativePrompt:    generation.NegativePrompt,
+			Width:             generation.Width,
+			Height:            generation.Height,
+			RestoreFaces:      generation.RestoreFaces,
+			EnableHR:          generation.EnableHR,
+			DenoisingStrength: generation.DenoisingStrength,
+			BatchSize:         generation.BatchSize,
+			Seed:              generation.Seed,
+			Subseed:           generation.Subseed,
+			SubseedStrength:   generation.SubseedStrength,
+			SamplerName:       generation.SamplerName,
+			CfgScale:          generation.CfgScale,
+			Steps:             generation.Steps,
+			NIter:             1,
+		},
+	})
+	if err != nil {
+		log.Printf("Error processing image upscale: %v\n", err)
+
+		errorContent := "I'm sorry, but I had a problem upscaling your image."
+
+		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+			Content: &errorContent,
+		})
+
+		return
+	}
+	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
+	if decodeErr != nil {
+		log.Printf("Error decoding image: %v\n", decodeErr)
+
+		return
+	}
+
+	imageBuf := bytes.NewBuffer(decodedImage)
+
+	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
+		interactionID, messageID, imagine.UpscaleIndex)
+
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
+		imagine.DiscordInteraction.Member.User.ID)
+
+	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		Content: &finishedContent,
+		Files: []*discordgo.File{
+			{
+				ContentType: "image/png",
+				Name:        "imagine.png",
+				Reader:      imageBuf,
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error editing interaction: %v\n", err)
+
+		return
+	}
 }
