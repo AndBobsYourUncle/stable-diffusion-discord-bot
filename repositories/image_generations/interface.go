@@ -7,5 +7,5 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error)
-	GetByInteraction(ctx context.Context, interactionID string) (*entities.ImageGeneration, error)
+	GetByMessage(ctx context.Context, messageID string) (*entities.ImageGeneration, error)
 }

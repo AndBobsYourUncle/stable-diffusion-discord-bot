@@ -5,6 +5,7 @@ import "time"
 type ImageGeneration struct {
 	ID                int64     `json:"id"`
 	InteractionID     string    `json:"interaction_id"`
+	MessageID         string    `json:"message_id"`
 	MemberID          string    `json:"member_id"`
 	SortOrder         int       `json:"sort_order"`
 	Prompt            string    `json:"prompt"`

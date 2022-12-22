@@ -9,11 +9,11 @@ import (
 )
 
 const insertGenerationQuery string = `
-INSERT INTO image_generations (interaction_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO image_generations (interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `
 
-const getGenerationByInteractionIDQuery string = `
-SELECT id, interaction_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE interaction_id = ?;
+const getGenerationByMessageID string = `
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, denoising_strength, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE message_id = ?;
 `
 
 type sqliteRepo struct {
@@ -42,7 +42,7 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 	generation.CreatedAt = repo.clock.Now()
 
 	res, err := repo.dbConn.ExecContext(ctx, insertGenerationQuery,
-		generation.InteractionID, generation.MemberID, generation.SortOrder, generation.Prompt,
+		generation.InteractionID, generation.MessageID, generation.MemberID, generation.SortOrder, generation.Prompt,
 		generation.NegativePrompt, generation.Width, generation.Height, generation.RestoreFaces,
 		generation.EnableHR, generation.DenoisingStrength, generation.BatchSize, generation.Seed, generation.Subseed,
 		generation.SubseedStrength, generation.SamplerName, generation.CfgScale, generation.Steps, generation.Processed, generation.CreatedAt)
@@ -60,11 +60,11 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 	return generation, nil
 }
 
-func (repo *sqliteRepo) GetByInteraction(ctx context.Context, interactionID string) (*entities.ImageGeneration, error) {
+func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*entities.ImageGeneration, error) {
 	var generation entities.ImageGeneration
 
-	err := repo.dbConn.QueryRowContext(ctx, getGenerationByInteractionIDQuery, interactionID).Scan(
-		&generation.ID, &generation.InteractionID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
+	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageID, messageID).Scan(
+		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
 		&generation.EnableHR, &generation.DenoisingStrength, &generation.BatchSize, &generation.Seed, &generation.Subseed,
 		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt)

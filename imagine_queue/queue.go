@@ -116,12 +116,16 @@ func (q *queueImpl) processCurrentImagine() {
 			q.currentImagine.DiscordInteraction.Member.User.ID,
 			q.currentImagine.Prompt)
 
-		q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
+		message, err := q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &newContent,
 		})
+		if err != nil {
+			log.Printf("Error editing interaction: %v", err)
+		}
 
 		newGeneration := &entities.ImageGeneration{
 			InteractionID: q.currentImagine.DiscordInteraction.ID,
+			MessageID:     message.ID,
 			MemberID:      q.currentImagine.DiscordInteraction.Member.User.ID,
 			SortOrder:     0,
 			Prompt:        q.currentImagine.Prompt,
@@ -143,7 +147,7 @@ func (q *queueImpl) processCurrentImagine() {
 			Processed:         false,
 		}
 
-		_, err := q.imageGenerationRepo.Create(context.Background(), newGeneration)
+		_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
 		if err != nil {
 			log.Printf("Error creating image generation record: %v\n", err)
 		}
@@ -195,6 +199,35 @@ func (q *queueImpl) processCurrentImagine() {
 			imageBuf := bytes.NewBuffer(decodedImage)
 
 			imageBufs[idx] = imageBuf
+		}
+
+		for idx := range resp.Seeds {
+			subGeneration := &entities.ImageGeneration{
+				InteractionID:     newGeneration.InteractionID,
+				MessageID:         newGeneration.MessageID,
+				MemberID:          newGeneration.MemberID,
+				SortOrder:         idx + 1,
+				Prompt:            newGeneration.Prompt,
+				NegativePrompt:    newGeneration.NegativePrompt,
+				Width:             newGeneration.Width,
+				Height:            newGeneration.Height,
+				RestoreFaces:      newGeneration.RestoreFaces,
+				EnableHR:          newGeneration.EnableHR,
+				DenoisingStrength: newGeneration.DenoisingStrength,
+				BatchSize:         newGeneration.BatchSize,
+				Seed:              resp.Seeds[idx],
+				Subseed:           resp.Subseeds[idx],
+				SubseedStrength:   newGeneration.SubseedStrength,
+				SamplerName:       newGeneration.SamplerName,
+				CfgScale:          newGeneration.CfgScale,
+				Steps:             newGeneration.Steps,
+				Processed:         true,
+			}
+
+			_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
+			if createErr != nil {
+				log.Printf("Error creating image generation record: %v\n", createErr)
+			}
 		}
 
 		compositeImage, err := q.compositeRenderer.TileImages(imageBufs)

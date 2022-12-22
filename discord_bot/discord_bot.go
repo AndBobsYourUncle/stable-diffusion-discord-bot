@@ -140,9 +140,16 @@ func (b *botImpl) processImagineMessageComponent(s *discordgo.Session, i *discor
 		log.Printf("Error responding to interaction: %v", err)
 	}
 
-	log.Printf("Reimagining interaction: %v", i.Message.Interaction.ID)
+	interactionID := i.Interaction.ID
+	messageID := ""
 
-	generation, err := b.imageGenerationRepo.GetByInteraction(context.Background(), i.Message.Interaction.ID)
+	if i.Message != nil {
+		messageID = i.Message.ID
+	}
+
+	log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
+
+	generation, err := b.imageGenerationRepo.GetByMessage(context.Background(), messageID)
 	if err != nil {
 		log.Printf("Error getting image generation: %v", err)
 

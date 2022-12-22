@@ -20,6 +20,7 @@ const createGenerationTableIfNotExistsQuery string = `
 CREATE TABLE IF NOT EXISTS image_generations (
 id INTEGER NOT NULL PRIMARY KEY,
 interaction_id TEXT NOT NULL,
+message_id TEXT NOT NULL,
 member_id TEXT NOT NULL,
 sort_order INTEGER NOT NULL,
 prompt TEXT NOT NULL,
@@ -45,6 +46,11 @@ CREATE INDEX IF NOT EXISTS generation_interaction_index
 ON image_generations(interaction_id);
 `
 
+const createMessageIndexIfNotExistsQuery string = `
+CREATE INDEX IF NOT EXISTS generation_interaction_index 
+ON image_generations(message_id);
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -53,6 +59,7 @@ type migration struct {
 var migrations = []migration{
 	{migrationName: "create generation table", migrationQuery: createGenerationTableIfNotExistsQuery},
 	{migrationName: "add generation interaction index", migrationQuery: createInteractionIndexIfNotExistsQuery},
+	{migrationName: "add generation message index", migrationQuery: createMessageIndexIfNotExistsQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {
@@ -143,13 +150,6 @@ func DBFilename() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	//ex, err := os.Executable()
-	//if err != nil {
-	//	return "", err
-	//}
-	//
-	//exPath := filepath.Dir(ex)
 
 	return dir + "/" + dbFile, nil
 }
