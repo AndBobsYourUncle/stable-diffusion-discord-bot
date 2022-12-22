@@ -32,14 +32,15 @@ type jsonTextToImageResponse struct {
 }
 
 type jsonInfoResponse struct {
-	Seed     int   `json:"seed"`
-	AllSeeds []int `json:"all_seeds"`
+	Seed        int   `json:"seed"`
+	AllSeeds    []int `json:"all_seeds"`
+	AllSubseeds []int `json:"all_subseeds"`
 }
 
 type TextToImageResponse struct {
-	Images []string `json:"images"`
-	Seed   int      `json:"seed"`
-	Seeds  []int    `json:"all_seeds"`
+	Images   []string `json:"images"`
+	Seeds    []int    `json:"seeds"`
+	Subseeds []int    `json:"subseeds"`
 }
 
 type TextToImageRequest struct {
@@ -125,8 +126,8 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 	}
 
 	return &TextToImageResponse{
-		Images: respStruct.Images,
-		Seed:   infoStruct.Seed,
-		Seeds:  infoStruct.AllSeeds,
+		Images:   respStruct.Images,
+		Seeds:    infoStruct.AllSeeds,
+		Subseeds: infoStruct.AllSubseeds,
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
@@ -25,6 +26,7 @@ type queueImpl struct {
 	currentImagine      *QueueItem
 	mu                  sync.Mutex
 	imageGenerationRepo image_generations.Repository
+	compositeRenderer   composite_renderer.Renderer
 }
 
 type Config struct {
@@ -41,10 +43,16 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing image generation repository")
 	}
 
+	compositeRenderer, err := composite_renderer.New(composite_renderer.Config{})
+	if err != nil {
+		return nil, err
+	}
+
 	return &queueImpl{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
 		imageGenerationRepo: cfg.ImageGenerationRepo,
 		queue:               make(chan *QueueItem, 100),
+		compositeRenderer:   compositeRenderer,
 	}, nil
 }
 
@@ -174,7 +182,9 @@ func (q *queueImpl) processCurrentImagine() {
 			q.currentImagine.Prompt,
 		)
 
-		attachedImages := make([]*discordgo.File, len(resp.Images))
+		log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
+
+		imageBufs := make([]*bytes.Buffer, len(resp.Images))
 
 		for idx, image := range resp.Images {
 			decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
@@ -184,16 +194,25 @@ func (q *queueImpl) processCurrentImagine() {
 
 			imageBuf := bytes.NewBuffer(decodedImage)
 
-			attachedImages[idx] = &discordgo.File{
-				ContentType: "image/png",
-				Name:        "imagine.png",
-				Reader:      imageBuf,
-			}
+			imageBufs[idx] = imageBuf
+		}
+
+		compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
+		if err != nil {
+			log.Printf("Error tiling images: %v\n", err)
+
+			return
 		}
 
 		_, err = q.botSession.InteractionResponseEdit(q.currentImagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
-			Files:   attachedImages,
+			Files: []*discordgo.File{
+				{
+					ContentType: "image/png",
+					Name:        "imagine.png",
+					Reader:      compositeImage,
+				},
+			},
 			Components: &[]discordgo.MessageComponent{
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
