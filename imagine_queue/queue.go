@@ -259,7 +259,7 @@ func (q *queueImpl) processCurrentImagine() {
 							// CustomID is a thing telling Discord which data to send when this button will be pressed.
 							CustomID: "imagine_reroll",
 							Emoji: discordgo.ComponentEmoji{
-								Name: "🤷",
+								Name: "🎲",
 							},
 						},
 					},
