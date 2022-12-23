@@ -2,6 +2,9 @@
 
 This is a Discord bot that interfaces with the Automatic1111 API, from this project: https://github.com/AUTOMATIC1111/stable-diffusion-webui 
 
+Video showing off the current features:
+https://www.youtube.com/watch?v=of5MBh3ueMk
+
 ## Installation
 
 1. Clone this repository
