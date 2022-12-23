@@ -12,7 +12,8 @@ This is a Discord bot that interfaces with the Automatic1111 API, from this proj
 
 1. Create a Discord bot and get the token
 2. Add the Discord bot to your Discord server. It needs permissions to post messages, use slash commands, mentioning anyone, and uploading files.
-2. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
+3. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
+4. The first run will generate a new sqlite DB file in the current working directory.
 
 ## Commands
 
@@ -26,18 +27,22 @@ The bot then checks the queue every second. If the queue is not empty, and there
 
 After the webui has finished processing the prompt, the bot will then update the reply message with the finished image.
 
+Buttons are added to the Discord response message for interactions like re-roll, variations, and up-scaling.
+
+All image generations are saved into a local sqlite database, so that the parameters of the image can be retrieved later for variations or up-scaling.
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 There are lots more features that could be added to this bot, such as:
 
-- [ ] Moving defaults to a config file
+- [ ] Moving defaults to the database
 - [x] Ability to easily re-roll an image
 - [x] Generating multiple images at once
 - [x] Ability to upscale the resulting images
-- [ ] Ability to generate variations on a grid image
-- [ ] Ability to tweak more settings when issuing the `/imagine` command
+- [x] Ability to generate variations on a grid image
+- [ ] Ability to tweak more settings when issuing the `/imagine` command (like aspect ratio)
 - [ ] Image to image processing
 
 I'll probably be adding a few of these over time, but any contributions are also welcome.
