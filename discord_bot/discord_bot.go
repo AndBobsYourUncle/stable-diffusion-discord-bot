@@ -5,24 +5,21 @@ import (
 	"fmt"
 	"log"
 	"stable_diffusion_bot/imagine_queue"
-	"stable_diffusion_bot/repositories/image_generations"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type botImpl struct {
-	botSession          *discordgo.Session
-	guildID             string
-	imagineQueue        imagine_queue.Queue
-	imageGenerationRepo image_generations.Repository
-	registeredCommands  []*discordgo.ApplicationCommand
+	botSession         *discordgo.Session
+	guildID            string
+	imagineQueue       imagine_queue.Queue
+	registeredCommands []*discordgo.ApplicationCommand
 }
 
 type Config struct {
-	BotToken            string
-	GuildID             string
-	ImagineQueue        imagine_queue.Queue
-	ImageGenerationRepo image_generations.Repository
+	BotToken     string
+	GuildID      string
+	ImagineQueue imagine_queue.Queue
 }
 
 func New(cfg Config) (Bot, error) {
@@ -36,10 +33,6 @@ func New(cfg Config) (Bot, error) {
 
 	if cfg.ImagineQueue == nil {
 		return nil, errors.New("missing imagine queue")
-	}
-
-	if cfg.ImageGenerationRepo == nil {
-		return nil, errors.New("missing image generation repo")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
@@ -56,10 +49,9 @@ func New(cfg Config) (Bot, error) {
 	}
 
 	bot := &botImpl{
-		botSession:          botSession,
-		imagineQueue:        cfg.ImagineQueue,
-		imageGenerationRepo: cfg.ImageGenerationRepo,
-		registeredCommands:  make([]*discordgo.ApplicationCommand, 0),
+		botSession:         botSession,
+		imagineQueue:       cfg.ImagineQueue,
+		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 	}
 
 	err = bot.addImagineCommand()

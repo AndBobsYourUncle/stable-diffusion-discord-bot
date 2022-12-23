@@ -22,15 +22,22 @@ func main() {
 	flag.Parse()
 
 	if guildID == nil {
-		log.Fatalf("Guild ID is required")
+		log.Fatalf("Guild ID flag is required")
 	}
 
 	if botToken == nil {
-		log.Fatalf("Bot token is required")
+		log.Fatalf("Bot token flag is required")
 	}
 
 	if apiHost == nil {
-		log.Fatalf("API host is required")
+		log.Fatalf("API host flag is required")
+	}
+
+	stableDiffusionAPI, err := stable_diffusion_api.New(stable_diffusion_api.Config{
+		Host: *apiHost,
+	})
+	if err != nil {
+		log.Fatalf("Failed to create Stable Diffusion API: %v", err)
 	}
 
 	ctx := context.Background()
@@ -45,13 +52,6 @@ func main() {
 		log.Fatalf("Failed to create image generation repository: %v", err)
 	}
 
-	stableDiffusionAPI, err := stable_diffusion_api.New(stable_diffusion_api.Config{
-		Host: *apiHost,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
 		StableDiffusionAPI:  stableDiffusionAPI,
 		ImageGenerationRepo: generationRepo,
@@ -61,10 +61,9 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(discord_bot.Config{
-		BotToken:            *botToken,
-		GuildID:             *guildID,
-		ImagineQueue:        imagineQueue,
-		ImageGenerationRepo: generationRepo,
+		BotToken:     *botToken,
+		GuildID:      *guildID,
+		ImagineQueue: imagineQueue,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
