@@ -2,6 +2,9 @@
 
 This is a Discord bot that interfaces with the Automatic1111 API, from this project: https://github.com/AUTOMATIC1111/stable-diffusion-webui 
 
+Video showing off the current features:
+https://www.youtube.com/watch?v=of5MBh3ueMk
+
 ## Installation
 
 1. Clone this repository
@@ -13,7 +16,7 @@ This is a Discord bot that interfaces with the Automatic1111 API, from this proj
 1. Create a Discord bot and get the token
 2. Add the Discord bot to your Discord server. It needs permissions to post messages, use slash commands, mentioning anyone, and uploading files.
 3. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
-4. The first run will generate a new sqlite DB file in the current working directory.
+4. The first run will generate a new SQLite DB file in the current working directory.
 
 ## Commands
 
@@ -21,15 +24,19 @@ This is a Discord bot that interfaces with the Automatic1111 API, from this proj
 
 ## How it Works
 
-The bot implements a FIFO queue (first in, first out). When a user issues the `/imagine` command, their prompt is added to the end of the queue.
+The bot implements a FIFO queue (first in, first out). When a user issues the `/imagine` command (or uses an interaction button), they are added to the end of the queue.
 
-The bot then checks the queue every second. If the queue is not empty, and there is no image currently being processed, it will send the first prompt to the webui, and then remove it from the queue.
+The bot then checks the queue every second. If the queue is not empty, and there is nothing currently being processed, it will send the top interaction to the Automatic1111 WebUI API, and then remove it from the queue.
 
-After the webui has finished processing the prompt, the bot will then update the reply message with the finished image.
+After the Automatic1111 has finished processing the interaction, the bot will then update the reply message with the finished result.
 
 Buttons are added to the Discord response message for interactions like re-roll, variations, and up-scaling.
 
-All image generations are saved into a local sqlite database, so that the parameters of the image can be retrieved later for variations or up-scaling.
+All image generations are saved into a local SQLite database, so that the parameters of the image can be retrieved later for variations or up-scaling.
+
+<img width="846" alt="Screenshot 2022-12-22 at 4 25 03 PM" src="https://user-images.githubusercontent.com/7525989/209247258-8c637265-b0b2-419a-98c6-95c4bb78504f.png">
+
+<img width="667" alt="Screenshot 2022-12-22 at 4 25 18 PM" src="https://user-images.githubusercontent.com/7525989/209247280-4318a73a-71f4-48aa-8310-7fdfbbbf6820.png">
 
 ## Contributing
 
