@@ -218,7 +218,7 @@ func (q *queueImpl) processImagineGrid(prompt string, seed int, subseedStrength 
 		Subseed:           -1,
 		SubseedStrength:   subseedStrength,
 		SamplerName:       "Euler a",
-		CfgScale:          7,
+		CfgScale:          9,
 		Steps:             20,
 		Processed:         false,
 	}
