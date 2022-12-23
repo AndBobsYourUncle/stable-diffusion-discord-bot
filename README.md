@@ -38,6 +38,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 There are lots more features that could be added to this bot, such as:
 
 - [ ] Moving defaults to the database
+- [ ] Per-user defaults/settings, as well as enforcing limits on a user's usage of the bot
 - [x] Ability to easily re-roll an image
 - [x] Generating multiple images at once
 - [x] Ability to upscale the resulting images
