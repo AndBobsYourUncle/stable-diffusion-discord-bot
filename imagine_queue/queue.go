@@ -134,9 +134,26 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		prompt := q.currentImagine.Prompt
-		seed := -1
-		subseedStrength := float64(0)
+		// new generation with defaults
+		newGeneration := &entities.ImageGeneration{
+			Prompt: q.currentImagine.Prompt,
+			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+			Width:             768,
+			Height:            768,
+			RestoreFaces:      true,
+			EnableHR:          true,
+			DenoisingStrength: 0.7,
+			BatchSize:         1,
+			Seed:              -1,
+			Subseed:           -1,
+			SubseedStrength:   0,
+			SamplerName:       "Euler a",
+			CfgScale:          9,
+			Steps:             20,
+			Processed:         false,
+		}
 
 		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
 			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
@@ -146,15 +163,19 @@ func (q *queueImpl) processCurrentImagine() {
 				return
 			}
 
-			prompt = foundGeneration.Prompt
+			// if we are rerolling, or generating variations, we simply replace some defaults
+			newGeneration = foundGeneration
 
+			// for variations, we need random subseeds
+			newGeneration.Subseed = -1
+
+			// for variations, the subseed strength determines how much variation we get
 			if q.currentImagine.Type == ItemTypeVariation {
-				seed = foundGeneration.Seed
-				subseedStrength = 0.15
+				newGeneration.SubseedStrength = 0.15
 			}
 		}
 
-		err := q.processImagineGrid(prompt, seed, subseedStrength, q.currentImagine)
+		err := q.processImagineGrid(newGeneration, q.currentImagine)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
 
@@ -185,12 +206,12 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 	return generation, nil
 }
 
-func (q *queueImpl) processImagineGrid(prompt string, seed int, subseedStrength float64, imagine *QueueItem) error {
-	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, prompt)
+func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
+	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
 	newContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them.",
 		imagine.DiscordInteraction.Member.User.ID,
-		prompt)
+		newGeneration.Prompt)
 
 	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &newContent,
@@ -199,29 +220,10 @@ func (q *queueImpl) processImagineGrid(prompt string, seed int, subseedStrength 
 		log.Printf("Error editing interaction: %v", err)
 	}
 
-	newGeneration := &entities.ImageGeneration{
-		InteractionID: imagine.DiscordInteraction.ID,
-		MessageID:     message.ID,
-		MemberID:      imagine.DiscordInteraction.Member.User.ID,
-		SortOrder:     0,
-		Prompt:        prompt,
-		NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-			"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-			"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-		Width:             768,
-		Height:            768,
-		RestoreFaces:      true,
-		EnableHR:          true,
-		DenoisingStrength: 0.7,
-		BatchSize:         1,
-		Seed:              seed,
-		Subseed:           -1,
-		SubseedStrength:   subseedStrength,
-		SamplerName:       "Euler a",
-		CfgScale:          9,
-		Steps:             20,
-		Processed:         false,
-	}
+	newGeneration.InteractionID = imagine.DiscordInteraction.ID
+	newGeneration.MessageID = message.ID
+	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
+	newGeneration.SortOrder = 0
 
 	_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
 	if err != nil {
@@ -259,7 +261,7 @@ func (q *queueImpl) processImagineGrid(prompt string, seed int, subseedStrength 
 
 	finishedContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
 		imagine.DiscordInteraction.Member.User.ID,
-		prompt,
+		newGeneration.Prompt,
 	)
 
 	log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
