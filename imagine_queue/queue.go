@@ -134,7 +134,7 @@ const (
 )
 
 func fixEmDash(prompt string) string {
-	return strings.ReplaceAll(prompt, string(emdash), string(hyphen))
+	return strings.ReplaceAll(prompt, string(emdash), string(2*hyphen))
 }
 
 var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
