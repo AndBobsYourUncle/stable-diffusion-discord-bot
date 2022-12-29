@@ -22,10 +22,12 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 ### `/imagine`
 
-Creates an image from a text prompt.
+Creates an image from a text prompt. (e.g. `/imagine cute kitten riding a skateboard`)
 
-Optionally you can specify an aspect ratio with `-ar <width>:<height>`
-  - Example: `/imagine cute kitten riding a skateboard -ar 16:9`
+Available options:
+- Aspect Ratio
+  - `--ar <width>:<height>`
+  - e.g. `/imagine cute kitten riding a skateboard --ar 16:9`
 
 ## How it Works
 
