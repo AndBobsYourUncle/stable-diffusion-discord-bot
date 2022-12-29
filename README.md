@@ -20,7 +20,12 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 ## Commands
 
-- `/imagine <text>` - Creates an image with the text
+### `/imagine`
+
+Creates an image from a text prompt.
+
+Optionally you can specify an aspect ratio with `-ar <width>:<height>`
+  - Example: `/imagine cute kitten riding a skateboard -ar 16:9`
 
 ## How it Works
 

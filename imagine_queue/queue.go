@@ -9,10 +9,12 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"regexp"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
+	"strconv"
 	"sync"
 	"time"
 
@@ -119,6 +121,55 @@ func (q *queueImpl) pullNextInQueue() {
 	}
 }
 
+type dimensionsResult struct {
+	SanitizedPrompt string
+	Width           int
+	Height          int
+}
+
+var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
+
+func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
+	arMatches := arRegex.FindStringSubmatch(prompt)
+
+	width := 768
+	height := 768
+
+	if len(arMatches) == 3 {
+		log.Printf("Aspect ratio overwrite: %#v", arMatches)
+
+		prompt = arRegex.ReplaceAllString(prompt, "")
+
+		firstDimension, err := strconv.Atoi(arMatches[1])
+		if err != nil {
+			return nil, err
+		}
+
+		secondDimension, err := strconv.Atoi(arMatches[2])
+		if err != nil {
+			return nil, err
+		}
+
+		if firstDimension > secondDimension {
+			scaledWidth := float64(height) * (float64(firstDimension) / float64(secondDimension))
+
+			width = (int(scaledWidth) + 7) & (-8)
+		} else {
+			scaledHeight := float64(width) * (float64(secondDimension) / float64(firstDimension))
+
+			height = (int(scaledHeight) + 7) & (-8)
+		}
+
+		log.Printf("New dimensions: width: %v, height: %v", width, height)
+	}
+
+	return &dimensionsResult{
+		SanitizedPrompt: prompt,
+		Width:           width,
+		Height:          height,
+	}, nil
+}
+
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
 		defer func() {
@@ -134,14 +185,21 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
+		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt)
+		if err != nil {
+			log.Printf("Error extracting dimensions from prompt: %v", err)
+
+			return
+		}
+
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
-			Prompt: q.currentImagine.Prompt,
+			Prompt: promptRes.SanitizedPrompt,
 			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-			Width:             768,
-			Height:            768,
+			Width:             promptRes.Width,
+			Height:            promptRes.Height,
 			RestoreFaces:      true,
 			EnableHR:          true,
 			DenoisingStrength: 0.7,
@@ -175,7 +233,7 @@ func (q *queueImpl) processCurrentImagine() {
 			}
 		}
 
-		err := q.processImagineGrid(newGeneration, q.currentImagine)
+		err = q.processImagineGrid(newGeneration, q.currentImagine)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
 
@@ -483,7 +541,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
 		ResizeMode:      0,
-		UpscalingResize: 4,
+		UpscalingResize: 3,
 		Upscaler1:       "ESRGAN_4x",
 		TextToImageRequest: &stable_diffusion_api.TextToImageRequest{
 			Prompt:            generation.Prompt,
