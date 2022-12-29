@@ -13,9 +13,10 @@ import (
 
 // Bot parameters
 var (
-	guildID  = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
-	botToken = flag.String("token", "", "Bot access token")
-	apiHost  = flag.String("host", "", "Host for the Automatic1111 API")
+	guildID     = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
+	botToken    = flag.String("token", "", "Bot access token")
+	apiHost     = flag.String("host", "", "Host for the Automatic1111 API")
+	devModeFlag = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 )
 
 func main() {
@@ -31,6 +32,14 @@ func main() {
 
 	if apiHost == nil {
 		log.Fatalf("API host flag is required")
+	}
+
+	devMode := false
+
+	if devModeFlag != nil && *devModeFlag {
+		devMode = *devModeFlag
+
+		log.Printf("Starting in development mode.. all commands prefixed with \"dev_\"")
 	}
 
 	stableDiffusionAPI, err := stable_diffusion_api.New(stable_diffusion_api.Config{
@@ -61,9 +70,10 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(discord_bot.Config{
-		BotToken:     *botToken,
-		GuildID:      *guildID,
-		ImagineQueue: imagineQueue,
+		DevelopmentMode: devMode,
+		BotToken:        *botToken,
+		GuildID:         *guildID,
+		ImagineQueue:    imagineQueue,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)

@@ -10,6 +10,7 @@ import (
 )
 
 type botImpl struct {
+	developmentMode    bool
 	botSession         *discordgo.Session
 	guildID            string
 	imagineQueue       imagine_queue.Queue
@@ -17,9 +18,18 @@ type botImpl struct {
 }
 
 type Config struct {
-	BotToken     string
-	GuildID      string
-	ImagineQueue imagine_queue.Queue
+	DevelopmentMode bool
+	BotToken        string
+	GuildID         string
+	ImagineQueue    imagine_queue.Queue
+}
+
+func (b *botImpl) imagineCommandString() string {
+	if b.developmentMode {
+		return "dev_imagine"
+	}
+
+	return "imagine"
 }
 
 func New(cfg Config) (Bot, error) {
@@ -49,6 +59,7 @@ func New(cfg Config) (Bot, error) {
 	}
 
 	bot := &botImpl{
+		developmentMode:    cfg.DevelopmentMode,
 		botSession:         botSession,
 		imagineQueue:       cfg.ImagineQueue,
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
@@ -63,7 +74,7 @@ func New(cfg Config) (Bot, error) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			switch i.ApplicationCommandData().Name {
-			case "imagine":
+			case bot.imagineCommandString():
 				bot.processImagineCommand(s, i)
 			default:
 				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
@@ -114,7 +125,7 @@ func (b *botImpl) addImagineCommand() error {
 	log.Printf("Adding command 'imagine'...")
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        "imagine",
+		Name:        b.imagineCommandString(),
 		Description: "Ask the bot to imagine something",
 		Options: []*discordgo.ApplicationCommandOption{
 			{

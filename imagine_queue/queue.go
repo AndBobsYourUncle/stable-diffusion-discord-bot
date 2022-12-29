@@ -22,6 +22,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const (
+	defaultWidth  = 768
+	defaultHeight = 768
+)
+
 type queueImpl struct {
 	botSession          *discordgo.Session
 	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
@@ -145,9 +150,9 @@ func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
 
 	arMatches := arRegex.FindStringSubmatch(prompt)
 
-	// defaults to 1:1, with the default being 768x768
-	width := 768
-	height := 768
+	// defaults to 1:1
+	width := defaultWidth
+	height := defaultHeight
 
 	if len(arMatches) == 3 {
 		log.Printf("Aspect ratio overwrite: %#v", arMatches)
@@ -216,10 +221,10 @@ func (q *queueImpl) processCurrentImagine() {
 				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
 			Width:             promptRes.Width,
 			Height:            promptRes.Height,
-			FirstPhaseWidth:   768,
-			FirstPhaseHeight:  768,
 			RestoreFaces:      true,
 			EnableHR:          true,
+			FirstPhaseWidth:   defaultWidth, // first phase HR fix could be smaller than the default
+			FirstPhaseHeight:  defaultHeight,
 			DenoisingStrength: 0.7,
 			BatchSize:         1,
 			Seed:              -1,
