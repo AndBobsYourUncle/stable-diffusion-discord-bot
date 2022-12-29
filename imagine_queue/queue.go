@@ -153,10 +153,12 @@ func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
 		if firstDimension > secondDimension {
 			scaledWidth := float64(height) * (float64(firstDimension) / float64(secondDimension))
 
+			// Round up to the nearest 8
 			width = (int(scaledWidth) + 7) & (-8)
-		} else {
+		} else if secondDimension > firstDimension {
 			scaledHeight := float64(width) * (float64(secondDimension) / float64(firstDimension))
 
+			// Round up to the nearest 8
 			height = (int(scaledHeight) + 7) & (-8)
 		}
 
