@@ -22,15 +22,15 @@ var (
 func main() {
 	flag.Parse()
 
-	if guildID == nil {
+	if guildID == nil || *guildID == "" {
 		log.Fatalf("Guild ID flag is required")
 	}
 
-	if botToken == nil {
+	if botToken == nil || *botToken == "" {
 		log.Fatalf("Bot token flag is required")
 	}
 
-	if apiHost == nil {
+	if apiHost == nil || *apiHost == "" {
 		log.Fatalf("API host flag is required")
 	}
 
