@@ -45,6 +45,10 @@ All image generations are saved into a local SQLite database, so that the parame
 
 <img width="667" alt="Screenshot 2022-12-22 at 4 25 18 PM" src="https://user-images.githubusercontent.com/7525989/209247280-4318a73a-71f4-48aa-8310-7fdfbbbf6820.png">
 
+Options like aspect ratio are extracted and sanitized from the text prompt, and then the resulting options are stored in the database record for the image generation (for further variations or upscaling):
+
+<img width="995" alt="Screenshot 2022-12-28 at 4 30 43 PM" src="https://user-images.githubusercontent.com/7525989/209888645-b616fbb1-955a-4d3e-9a25-ce43baa6cfbd.png">
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
