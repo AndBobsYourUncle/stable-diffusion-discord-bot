@@ -26,8 +26,8 @@ Creates an image from a text prompt. (e.g. `/imagine cute kitten riding a skateb
 
 Available options:
 - Aspect Ratio
-  - `--ar <width>:<height>`
-  - e.g. `/imagine cute kitten riding a skateboard --ar 16:9`
+  - `--ar <width>:<height>` (e.g. `/imagine cute kitten riding a skateboard --ar 16:9`)
+  - Uses the default width or height, and calculates the final value for the other based on the aspect ratio. It then rounds that value up to the nearest multiple of `8`, to match the expectations of the underlying neural model and SD API.
 
 ## How it Works
 
