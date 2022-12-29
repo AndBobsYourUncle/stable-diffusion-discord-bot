@@ -15,6 +15,7 @@ import (
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,9 +128,21 @@ type dimensionsResult struct {
 	Height          int
 }
 
+const (
+	emdash = '\u2014'
+	hyphen = '\u002D'
+)
+
+func fixEmDash(prompt string) string {
+	return strings.ReplaceAll(prompt, string(emdash), string(hyphen))
+}
+
 var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
 
 func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
+	// sanitze em dashes
+	prompt = fixEmDash(prompt)
+
 	arMatches := arRegex.FindStringSubmatch(prompt)
 
 	// defaults to 1:1, with the default being 768x768
