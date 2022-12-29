@@ -140,7 +140,7 @@ func fixEmDash(prompt string) string {
 var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
 
 func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
-	// sanitize em dashes
+	// Sanitize em dashes. Some phones will autocorrect to em dashes
 	prompt = fixEmDash(prompt)
 
 	arMatches := arRegex.FindStringSubmatch(prompt)
