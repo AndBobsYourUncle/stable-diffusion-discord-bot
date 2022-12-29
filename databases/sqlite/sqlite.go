@@ -51,6 +51,11 @@ CREATE INDEX IF NOT EXISTS generation_interaction_index
 ON image_generations(message_id);
 `
 
+const addHiresFirstPassDimensionColumnsQuery string = `
+ALTER TABLE image_generations ADD COLUMN firstphase_width INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE image_generations ADD COLUMN firstphase_height INTEGER NOT NULL DEFAULT 0;
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -60,6 +65,7 @@ var migrations = []migration{
 	{migrationName: "create generation table", migrationQuery: createGenerationTableIfNotExistsQuery},
 	{migrationName: "add generation interaction index", migrationQuery: createInteractionIndexIfNotExistsQuery},
 	{migrationName: "add generation message index", migrationQuery: createMessageIndexIfNotExistsQuery},
+	{migrationName: "add hires firstpass columns", migrationQuery: addHiresFirstPassDimensionColumnsQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {
