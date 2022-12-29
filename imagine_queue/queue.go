@@ -132,6 +132,7 @@ var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
 func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
 	arMatches := arRegex.FindStringSubmatch(prompt)
 
+	// defaults to 1:1, with the default being 768x768
 	width := 768
 	height := 768
 
