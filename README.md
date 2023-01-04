@@ -15,6 +15,7 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 1. Create a Discord bot and get the token
 2. Add the Discord bot to your Discord server. It needs permissions to post messages, use slash commands, mentioning anyone, and uploading files.
+3. Ensure that the Automatic 1111 webui is running with `--api` (and also `--listen` if it is running on a different computer than the bot). Also, the `-host` parameter needs to have no trailing `/` after the port (`7860` by default).
 3. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
 4. The first run will generate a new SQLite DB file in the current working directory.
 
