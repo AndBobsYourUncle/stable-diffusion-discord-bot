@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -186,6 +187,9 @@ func (api *apiImpl) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, 
 
 	err = json.Unmarshal(body, respStruct)
 	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
 		return nil, err
 	}
 
