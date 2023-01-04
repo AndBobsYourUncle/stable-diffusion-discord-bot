@@ -87,6 +87,9 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 
 	response, err := client.Do(request)
 	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Error with API Request: %s", string(jsonData))
+
 		return nil, err
 	}
 
@@ -98,6 +101,9 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 
 	err = json.Unmarshal(body, respStruct)
 	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
 		return nil, err
 	}
 
@@ -105,6 +111,9 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 
 	err = json.Unmarshal([]byte(respStruct.Info), infoStruct)
 	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
 		return nil, err
 	}
 
@@ -176,6 +185,9 @@ func (api *apiImpl) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, 
 
 	response, err := client.Do(request)
 	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Error with API Request: %s", string(jsonData))
+
 		return nil, err
 	}
 
