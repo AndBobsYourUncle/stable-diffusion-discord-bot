@@ -18,7 +18,6 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 3. Ensure that the Automatic 1111 webui is running with `--api` (and also `--listen` if it is running on a different computer than the bot).
 4. Run the bot with `./stable_diffusion_bot -token <token> -guild <guild ID> -host <webui host, e.g. http://127.0.0.1:7860>`
   a. It's important that the `-host` parameter matches the IP address where the A1111 is running. If the bot is on the same computer, `127.0.0.1` will work.
-  
   b. There needs to be no trailing slash after the port number (which is `7860` in this example). So, instead of `http://127.0.0.1:7860/`, it should be `http://127.0.0.1:7860`.
 5. The first run will generate a new SQLite DB file in the current working directory.
 
