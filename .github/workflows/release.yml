@@ -5,28 +5,25 @@ on:
     types: [created]
 
 jobs:
-  releases-matrix:
-    name: Release Go Binary
+  xgo:
+    name: Release Go Binaries
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # build and publish in parallel: linux/386, linux/amd64, linux/arm64, windows/386, windows/amd64, darwin/amd64, darwin/arm64
-        goos: [linux, windows, darwin]
-        goarch: ["386", amd64, arm64]
-        exclude:
-          - goarch: "386"
-            goos: darwin
-          - goarch: arm64
-            goos: windows
     steps:
-      - uses: actions/checkout@v3
-      - uses: wangyoucao577/go-release-action@v1.34
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Build
+        uses: crazy-max/ghaction-xgo@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          goos: ${{ matrix.goos }}
-          goarch: ${{ matrix.goarch }}
-          goversion: "https://dl.google.com/go/go1.19.1.linux-amd64.tar.gz"
-          binary_name: "stable_diffusion_bot"
-          extra_files: LICENSE README.md
-          pre_command: "apt update && apt install musl-tools -y && export CGO_ENABLED=1 CC=musl-gcc"
-          ldflags: "-linkmode external -extldflags=-static"
+          xgo_version: latest
+          go_version: 1.18
+          dest: build
+          prefix: myapp
+          targets: linux/386,linux/amd64,linux/arm64,windows/386,windows/amd64,darwin/amd64,darwin/arm64
+          v: true
+          x: false
+          race: false
+          ldflags: -s -w
+          buildmode: default
+          trimpath: true
