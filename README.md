@@ -15,7 +15,7 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
    5. Most other Linux devices will need to use the linux-amd64 version
 2. Extract the archive folder to a location of your choice
 
-## Building
+## Building (optional, only if you want to build from source)
 
 1. Clone this repository
 2. Install Go 
