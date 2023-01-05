@@ -1,0 +1,22 @@
+name: Generate release-artifacts
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  generate:
+    name: Generate cross-platform builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      - name: Generate build files
+        uses: thatisuday/go-cross-build@v1
+        with:
+          platforms: 'linux/amd64, darwin/amd64, windows/amd64'
+          package: ''
+          name: 'stable_diffusion_bot'
+          compress: 'true'
+          dest: 'dist'
