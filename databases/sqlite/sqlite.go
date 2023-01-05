@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 const dbFile string = "sd_discord_bot.sqlite"
@@ -79,7 +79,7 @@ func New(ctx context.Context) (*sql.DB, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite3", filename)
+	db, err := sql.Open("sqlite", filename)
 	if err != nil {
 		return nil, err
 	}
