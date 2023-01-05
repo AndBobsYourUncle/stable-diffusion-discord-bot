@@ -30,4 +30,4 @@ jobs:
           binary_name: "stable_diffusion_bot"
           extra_files: LICENSE README.md
           pre_command: "export CGO_ENABLED=1 CC=musl-gcc"
-          build_flags: "--ldflags '-linkmode external -extldflags=-static'"
+          ldflags: "-linkmode external -extldflags=-static"
