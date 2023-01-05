@@ -1,29 +1,35 @@
-# .github/workflows/release.yaml
+name: goreleaser
 
 on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+  # packages: write
+  # issues: write
+
 jobs:
-  xgo:
-    name: Release Go Binaries
+  goreleaser:
     runs-on: ubuntu-latest
     steps:
       -
         name: Checkout
         uses: actions/checkout@v3
-      -
-        name: Build
-        uses: crazy-max/ghaction-xgo@v2
         with:
-          xgo_version: latest
-          go_version: 1.18
-          dest: build
-          prefix: stable_diffusion_bot
-          targets: linux/386,linux/amd64,linux/arm64,windows/386,windows/amd64,darwin/amd64,darwin/arm64
-          v: false
-          x: false
-          race: false
-          ldflags: -s -w
-          buildmode: default
-          trimpath: true
+          fetch-depth: 0
+      -
+        name: Set up Go
+        uses: actions/setup-go@v3
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          # either 'goreleaser' (default) or 'goreleaser-pro'
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Your GoReleaser Pro key, if you are using the 'goreleaser-pro' distribution
+          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
