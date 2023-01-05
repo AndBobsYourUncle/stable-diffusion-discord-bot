@@ -7,8 +7,19 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 ## Installation
 
+1. Download the appropriate version for your system from the releases page: https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot/releases
+   1. Windows users will need to use the windows-amd64 version
+   2. Intel Macs will need to use the darwin-amd64 version
+   3. M1 Macs will need to use the darwin-arm64 version
+   4. Devices like a Raspberry Pi will need to use the linux-arm64 version
+   5. Most other Linux devices will need to use the linux-amd64 version
+2. Extract the archive folder to a location of your choice
+
+## Building
+
 1. Clone this repository
-2. Install Go (and on Windows, you will likely need `gcc`, which you can find here: https://sourceforge.net/projects/mingw-w64/)
+2. Install Go 
+   * This varies with your operating system, but the easiest way is to use the official installer: https://golang.org/dl/ 
 3. Build the bot with `go build`
 
 ## Usage
