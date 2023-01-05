@@ -26,6 +26,5 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           goversion: "https://dl.google.com/go/go1.19.1.linux-amd64.tar.gz"
-          project_path: "./cmd/test-binary"
-          binary_name: "test-binary"
+          binary_name: "stable_diffusion_bot"
           extra_files: LICENSE README.md
