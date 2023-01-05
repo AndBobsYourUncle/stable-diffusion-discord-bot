@@ -28,5 +28,5 @@ jobs:
           goversion: "https://dl.google.com/go/go1.19.1.linux-amd64.tar.gz"
           binary_name: "stable_diffusion_bot"
           extra_files: LICENSE README.md
-          pre_command: "apt install musl && export CGO_ENABLED=1 CC=musl-gcc"
+          pre_command: "apt update && apt install musl-tools && export CGO_ENABLED=1 CC=musl-gcc"
           ldflags: "-linkmode external -extldflags=-static"
