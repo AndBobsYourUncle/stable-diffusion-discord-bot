@@ -29,4 +29,5 @@ jobs:
           project_path: "./"
           binary_name: "stable_diffusion_bot"
           extra_files: LICENSE README.md
-          build_flags: "CGO_ENABLED=1 CC=musl-gcc go build --ldflags '-linkmode external -extldflags=-static'"
+          pre_command: "export CGO_ENABLED=1 CC=musl-gcc"
+          build_flags: "--ldflags '-linkmode external -extldflags=-static'"
