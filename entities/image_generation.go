@@ -14,8 +14,8 @@ type ImageGeneration struct {
 	Height            int       `json:"height"`
 	RestoreFaces      bool      `json:"restore_faces"`
 	EnableHR          bool      `json:"enable_hr"`
-	FirstPhaseWidth   int       `json:"firstphase_width"`
-	FirstPhaseHeight  int       `json:"firstphase_height"`
+	HiresWidth        int       `json:"hires_width"`
+	HiresHeight       int       `json:"hires_height"`
 	DenoisingStrength float64   `json:"denoising_strength"`
 	BatchSize         int       `json:"batch_size"`
 	Seed              int       `json:"seed"`

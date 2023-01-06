@@ -56,6 +56,16 @@ ALTER TABLE image_generations ADD COLUMN firstphase_width INTEGER NOT NULL DEFAU
 ALTER TABLE image_generations ADD COLUMN firstphase_height INTEGER NOT NULL DEFAULT 0;
 `
 
+const dropHiresFirstPassDimensionColumnsQuery string = `
+ALTER TABLE image_generations DROP COLUMN firstphase_width;
+ALTER TABLE image_generations DROP COLUMN firstphase_height;
+`
+
+const addHiresResizeColumnsQuery string = `
+ALTER TABLE image_generations ADD COLUMN hires_width INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE image_generations ADD COLUMN hires_height INTEGER NOT NULL DEFAULT 0;
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -66,6 +76,8 @@ var migrations = []migration{
 	{migrationName: "add generation interaction index", migrationQuery: createInteractionIndexIfNotExistsQuery},
 	{migrationName: "add generation message index", migrationQuery: createMessageIndexIfNotExistsQuery},
 	{migrationName: "add hires firstpass columns", migrationQuery: addHiresFirstPassDimensionColumnsQuery},
+	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
+	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

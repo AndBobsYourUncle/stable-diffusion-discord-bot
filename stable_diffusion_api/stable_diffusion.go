@@ -51,8 +51,8 @@ type TextToImageRequest struct {
 	Height            int     `json:"height"`
 	RestoreFaces      bool    `json:"restore_faces"`
 	EnableHR          bool    `json:"enable_hr"`
-	FirstPhaseWidth   int     `json:"firstphase_width"`
-	FirstPhaseHeight  int     `json:"firstphase_height"`
+	HRResizeX         int     `json:"hr_resize_x"`
+	HRResizeY         int     `json:"hr_resize_y"`
 	DenoisingStrength float64 `json:"denoising_strength"`
 	BatchSize         int     `json:"batch_size"`
 	Seed              int     `json:"seed"`

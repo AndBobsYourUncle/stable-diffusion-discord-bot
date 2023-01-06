@@ -213,18 +213,28 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
+		enableHR := false
+		hiresWidth := 0
+		hiresHeight := 0
+
+		if promptRes.Width > defaultWidth || promptRes.Height > defaultHeight {
+			enableHR = true
+			hiresWidth = promptRes.Width
+			hiresHeight = promptRes.Height
+		}
+
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
 			Prompt: promptRes.SanitizedPrompt,
 			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-			Width:             promptRes.Width,
-			Height:            promptRes.Height,
+			Width:             defaultWidth,
+			Height:            defaultHeight,
 			RestoreFaces:      true,
-			EnableHR:          true,
-			FirstPhaseWidth:   defaultWidth, // first phase HR fix could be smaller than the default
-			FirstPhaseHeight:  defaultHeight,
+			EnableHR:          enableHR,
+			HiresWidth:        hiresWidth,
+			HiresHeight:       hiresHeight,
 			DenoisingStrength: 0.7,
 			BatchSize:         1,
 			Seed:              -1,
@@ -318,8 +328,8 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		Height:            newGeneration.Height,
 		RestoreFaces:      newGeneration.RestoreFaces,
 		EnableHR:          newGeneration.EnableHR,
-		FirstPhaseWidth:   newGeneration.FirstPhaseWidth,
-		FirstPhaseHeight:  newGeneration.FirstPhaseHeight,
+		HRResizeX:         newGeneration.HiresWidth,
+		HRResizeY:         newGeneration.HiresHeight,
 		DenoisingStrength: newGeneration.DenoisingStrength,
 		BatchSize:         newGeneration.BatchSize,
 		Seed:              newGeneration.Seed,
@@ -374,8 +384,8 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			Height:            newGeneration.Height,
 			RestoreFaces:      newGeneration.RestoreFaces,
 			EnableHR:          newGeneration.EnableHR,
-			FirstPhaseWidth:   newGeneration.FirstPhaseWidth,
-			FirstPhaseHeight:  newGeneration.FirstPhaseHeight,
+			HiresWidth:        newGeneration.HiresWidth,
+			HiresHeight:       newGeneration.HiresHeight,
 			DenoisingStrength: newGeneration.DenoisingStrength,
 			BatchSize:         newGeneration.BatchSize,
 			Seed:              resp.Seeds[idx],
@@ -577,8 +587,8 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			Height:            generation.Height,
 			RestoreFaces:      generation.RestoreFaces,
 			EnableHR:          generation.EnableHR,
-			FirstPhaseWidth:   generation.FirstPhaseWidth,
-			FirstPhaseHeight:  generation.FirstPhaseHeight,
+			HRResizeX:         generation.HiresWidth,
+			HRResizeY:         generation.HiresHeight,
 			DenoisingStrength: generation.DenoisingStrength,
 			BatchSize:         generation.BatchSize,
 			Seed:              generation.Seed,
