@@ -578,7 +578,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
 		ResizeMode:      0,
-		UpscalingResize: 3,
+		UpscalingResize: 2,
 		Upscaler1:       "ESRGAN_4x",
 		TextToImageRequest: &stable_diffusion_api.TextToImageRequest{
 			Prompt:            generation.Prompt,
