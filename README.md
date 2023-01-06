@@ -40,7 +40,7 @@ Responds with a message that has buttons to allow updating of the default settin
 
 By default, the size is 512x512. However, if you are running Stable Diffusion 2.0, you might want to change this to 768x768.
 
-Clicking on a button will cause the bot to update the setting, and switch the button style to indicate that it is the new default.
+Choosing an option will cause the bot to update the setting, and edit the message in place, allowing further edits.
 
 <img width="477" alt="Screenshot 2023-01-06 at 10 41 36 AM" src="https://user-images.githubusercontent.com/7525989/211077599-482536ef-1a70-4f58-abf0-314c773c64c6.png">
 
