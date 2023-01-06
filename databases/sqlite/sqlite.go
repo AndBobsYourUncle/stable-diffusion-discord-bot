@@ -66,6 +66,13 @@ ALTER TABLE image_generations ADD COLUMN hires_width INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE image_generations ADD COLUMN hires_height INTEGER NOT NULL DEFAULT 0;
 `
 
+const createDefaultSettingsTableIfNotExistsQuery string = `
+CREATE TABLE IF NOT EXISTS default_settings (
+member_id TEXT NOT NULL PRIMARY KEY,
+width INTEGER NOT NULL,
+height INTEGER NOT NULL
+);`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -78,6 +85,7 @@ var migrations = []migration{
 	{migrationName: "add hires firstpass columns", migrationQuery: addHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
+	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

@@ -7,6 +7,7 @@ import (
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
 )
@@ -61,9 +62,15 @@ func main() {
 		log.Fatalf("Failed to create image generation repository: %v", err)
 	}
 
+	defaultSettingsRepo, err := default_settings.NewRepository(&default_settings.Config{DB: sqliteDB})
+	if err != nil {
+		log.Fatalf("Failed to create default settings repository: %v", err)
+	}
+
 	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
 		StableDiffusionAPI:  stableDiffusionAPI,
 		ImageGenerationRepo: generationRepo,
+		DefaultSettingsRepo: defaultSettingsRepo,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create imagine queue: %v", err)
@@ -78,8 +85,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
 	}
-
-	log.Println("Press Ctrl+C to exit")
 
 	bot.Start()
 

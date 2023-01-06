@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/repositories"
+	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
@@ -23,8 +25,10 @@ import (
 )
 
 const (
-	defaultWidth  = 768
-	defaultHeight = 768
+	botID = "bot"
+
+	initializedWidth  = 768 // change to 512 once updating settings is implemented
+	initializedHeight = 768
 )
 
 type queueImpl struct {
@@ -35,11 +39,14 @@ type queueImpl struct {
 	mu                  sync.Mutex
 	imageGenerationRepo image_generations.Repository
 	compositeRenderer   composite_renderer.Renderer
+	defaultSettingsRepo default_settings.Repository
+	botDefaultSettings  *entities.DefaultSettings
 }
 
 type Config struct {
 	StableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
 	ImageGenerationRepo image_generations.Repository
+	DefaultSettingsRepo default_settings.Repository
 }
 
 func New(cfg Config) (Queue, error) {
@@ -49,6 +56,10 @@ func New(cfg Config) (Queue, error) {
 
 	if cfg.ImageGenerationRepo == nil {
 		return nil, errors.New("missing image generation repository")
+	}
+
+	if cfg.DefaultSettingsRepo == nil {
+		return nil, errors.New("missing default settings repository")
 	}
 
 	compositeRenderer, err := composite_renderer.New(composite_renderer.Config{})
@@ -61,6 +72,7 @@ func New(cfg Config) (Queue, error) {
 		imageGenerationRepo: cfg.ImageGenerationRepo,
 		queue:               make(chan *QueueItem, 100),
 		compositeRenderer:   compositeRenderer,
+		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 	}, nil
 }
 
@@ -90,6 +102,17 @@ func (q *queueImpl) AddImagine(item *QueueItem) (int, error) {
 
 func (q *queueImpl) StartPolling(botSession *discordgo.Session) {
 	q.botSession = botSession
+
+	botDefaultSettings, err := q.initializeOrGetBotDefaults()
+	if err != nil {
+		log.Printf("Error getting/initializing bot default settings: %v", err)
+
+		return
+	}
+
+	q.botDefaultSettings = botDefaultSettings
+
+	log.Println("Press Ctrl+C to exit")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
@@ -127,6 +150,63 @@ func (q *queueImpl) pullNextInQueue() {
 	}
 }
 
+func (q *queueImpl) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
+	botDefaultSettings, err := q.getBotDefaultSettings()
+	if err != nil && !errors.Is(err, &repositories.NotFoundError{}) {
+		return nil, err
+	}
+
+	if botDefaultSettings == nil {
+		botDefaultSettings, err = q.defaultSettingsRepo.Upsert(context.Background(), &entities.DefaultSettings{
+			MemberID: botID,
+			Width:    initializedWidth,
+			Height:   initializedHeight,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("Initialized bot default settings: %+v\n", botDefaultSettings)
+	} else {
+		log.Printf("Retrieved bot default settings: %+v\n", botDefaultSettings)
+	}
+
+	return botDefaultSettings, nil
+}
+
+func (q *queueImpl) getBotDefaultSettings() (*entities.DefaultSettings, error) {
+	if q.botDefaultSettings != nil {
+		return q.botDefaultSettings, nil
+	}
+
+	defaultSettings, err := q.defaultSettingsRepo.GetByMemberID(context.Background(), botID)
+	if err != nil {
+		return nil, err
+	}
+
+	q.botDefaultSettings = defaultSettings
+
+	return defaultSettings, nil
+}
+
+func (q *queueImpl) defaultWidth() (int, error) {
+	defaultSettings, err := q.getBotDefaultSettings()
+	if err != nil {
+		return 0, err
+	}
+
+	return defaultSettings.Width, nil
+}
+
+func (q *queueImpl) defaultHeight() (int, error) {
+	defaultSettings, err := q.getBotDefaultSettings()
+	if err != nil {
+		return 0, err
+	}
+
+	return defaultSettings.Height, nil
+}
+
 type dimensionsResult struct {
 	SanitizedPrompt string
 	Width           int
@@ -144,15 +224,11 @@ func fixEmDash(prompt string) string {
 
 var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
 
-func extractDimensionsFromPrompt(prompt string) (*dimensionsResult, error) {
+func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsResult, error) {
 	// Sanitize em dashes. Some phones will autocorrect to em dashes
 	prompt = fixEmDash(prompt)
 
 	arMatches := arRegex.FindStringSubmatch(prompt)
-
-	// defaults to 1:1
-	width := defaultWidth
-	height := defaultHeight
 
 	if len(arMatches) == 3 {
 		log.Printf("Aspect ratio overwrite: %#v", arMatches)
@@ -206,7 +282,21 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt)
+		defaultWidth, err := q.defaultWidth()
+		if err != nil {
+			log.Printf("Error getting default width: %v", err)
+
+			return
+		}
+
+		defaultHeight, err := q.defaultHeight()
+		if err != nil {
+			log.Printf("Error getting default height: %v", err)
+
+			return
+		}
+
+		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt, defaultWidth, defaultHeight)
 		if err != nil {
 			log.Printf("Error extracting dimensions from prompt: %v", err)
 
