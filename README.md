@@ -52,6 +52,7 @@ Available options:
 - Aspect Ratio
   - `--ar <width>:<height>` (e.g. `/imagine cute kitten riding a skateboard --ar 16:9`)
   - Uses the default width or height, and calculates the final value for the other based on the aspect ratio. It then rounds that value up to the nearest multiple of `8`, to match the expectations of the underlying neural model and SD API.
+  - Under the hood, it will use the "Hires fix" option in the API, which will generate an image with the bot's default width/height, and then resize it to the desired aspect ratio.
 
 ## How it Works
 
