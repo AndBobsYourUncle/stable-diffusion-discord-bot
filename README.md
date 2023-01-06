@@ -34,6 +34,14 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 ## Commands
 
+### `/imagine_settings`
+
+Responds with a message that has buttons to allow updating of the default settings for the `/imagine` command.
+
+By default, the size is 512x512. However, if you are running Stable Diffusion 2.0, you might want to change this to 768x768.
+
+Clicking on a button will cause the bot to update the setting, and switch the button style to indicate that it is the new default.
+
 ### `/imagine`
 
 Creates an image from a text prompt. (e.g. `/imagine cute kitten riding a skateboard`)

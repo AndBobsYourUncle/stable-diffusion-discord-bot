@@ -27,8 +27,8 @@ import (
 const (
 	botID = "bot"
 
-	initializedWidth  = 768 // change to 512 once updating settings is implemented
-	initializedHeight = 768
+	initializedWidth  = 512
+	initializedHeight = 512
 )
 
 type queueImpl struct {
@@ -205,6 +205,35 @@ func (q *queueImpl) defaultHeight() (int, error) {
 	}
 
 	return defaultSettings.Height, nil
+}
+
+func (q *queueImpl) GetDefaultBotWidth() (int, error) {
+	return q.defaultWidth()
+}
+
+func (q *queueImpl) GetDefaultBotHeight() (int, error) {
+	return q.defaultHeight()
+}
+
+func (q *queueImpl) UpdateDefaultDimensions(width, height int) error {
+	defaultSettings, err := q.getBotDefaultSettings()
+	if err != nil {
+		return err
+	}
+
+	defaultSettings.Width = width
+	defaultSettings.Height = height
+
+	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
+	if err != nil {
+		return err
+	}
+
+	q.botDefaultSettings = newDefaultSettings
+
+	log.Printf("Updated default dimensions to: %dx%d\n", width, height)
+
+	return nil
 }
 
 type dimensionsResult struct {

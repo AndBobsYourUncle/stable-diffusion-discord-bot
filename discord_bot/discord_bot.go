@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"stable_diffusion_bot/imagine_queue"
+	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -30,6 +32,14 @@ func (b *botImpl) imagineCommandString() string {
 	}
 
 	return "imagine"
+}
+
+func (b *botImpl) imagineSettingsCommandString() string {
+	if b.developmentMode {
+		return "dev_imagine_settings"
+	}
+
+	return "imagine_settings"
 }
 
 func New(cfg Config) (Bot, error) {
@@ -70,35 +80,75 @@ func New(cfg Config) (Bot, error) {
 		return nil, err
 	}
 
+	err = bot.addImagineSettingsCommand()
+	if err != nil {
+		return nil, err
+	}
+
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			switch i.ApplicationCommandData().Name {
 			case bot.imagineCommandString():
 				bot.processImagineCommand(s, i)
+			case bot.imagineSettingsCommandString():
+				bot.processImagineSettingsCommand(s, i)
 			default:
 				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
 			}
 		case discordgo.InteractionMessageComponent:
-			switch i.MessageComponentData().CustomID {
-			case "imagine_reroll":
+			switch customID := i.MessageComponentData().CustomID; {
+			case customID == "imagine_reroll":
 				bot.processImagineReroll(s, i)
-			case "imagine_upscale_1":
-				bot.processImagineUpscale(s, i, 1)
-			case "imagine_upscale_2":
-				bot.processImagineUpscale(s, i, 2)
-			case "imagine_upscale_3":
-				bot.processImagineUpscale(s, i, 3)
-			case "imagine_upscale_4":
-				bot.processImagineUpscale(s, i, 4)
-			case "imagine_variation_1":
-				bot.processImagineVariation(s, i, 1)
-			case "imagine_variation_2":
-				bot.processImagineVariation(s, i, 2)
-			case "imagine_variation_3":
-				bot.processImagineVariation(s, i, 3)
-			case "imagine_variation_4":
-				bot.processImagineVariation(s, i, 4)
+			case strings.HasPrefix(customID, "imagine_upscale_"):
+				interactionIndex := strings.TrimPrefix(customID, "imagine_upscale_")
+
+				interactionIndexInt, intErr := strconv.Atoi(interactionIndex)
+				if intErr != nil {
+					log.Printf("Error parsing interaction index: %v", err)
+
+					return
+				}
+
+				bot.processImagineUpscale(s, i, interactionIndexInt)
+			case strings.HasPrefix(customID, "imagine_variation_"):
+				interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
+
+				interactionIndexInt, intErr := strconv.Atoi(interactionIndex)
+				if intErr != nil {
+					log.Printf("Error parsing interaction index: %v", err)
+
+					return
+				}
+
+				bot.processImagineVariation(s, i, interactionIndexInt)
+			case customID == "imagine_dimension_setting_menu":
+				if len(i.MessageComponentData().Values) == 0 {
+					log.Printf("No values for imagine dimension setting menu")
+
+					return
+				}
+
+				sizes := strings.Split(i.MessageComponentData().Values[0], "_")
+
+				width := sizes[0]
+				height := sizes[1]
+
+				widthInt, intErr := strconv.Atoi(width)
+				if intErr != nil {
+					log.Printf("Error parsing width: %v", err)
+
+					return
+				}
+
+				heightInt, intErr := strconv.Atoi(height)
+				if intErr != nil {
+					log.Printf("Error parsing height: %v", err)
+
+					return
+				}
+
+				bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 			default:
 				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 			}
@@ -135,6 +185,24 @@ func (b *botImpl) addImagineCommand() error {
 				Required:    true,
 			},
 		},
+	})
+	if err != nil {
+		log.Printf("Error creating '%s' command: %v", cmd.Name, err)
+
+		return err
+	}
+
+	b.registeredCommands = append(b.registeredCommands, cmd)
+
+	return nil
+}
+
+func (b *botImpl) addImagineSettingsCommand() error {
+	log.Printf("Adding command 'imagine_settings'...")
+
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+		Name:        b.imagineSettingsCommandString(),
+		Description: "Change the default settings for the imagine command",
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", cmd.Name, err)
@@ -235,7 +303,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	}
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		// Ignore type for now, they will be discussed in "responses"
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
@@ -243,6 +310,102 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				position,
 				i.Member.User.ID,
 				prompt),
+		},
+	})
+}
+
+func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	defaultWidth, err := b.imagineQueue.GetDefaultBotWidth()
+	if err != nil {
+		log.Printf("error getting default width for settings command: %v", err)
+	}
+
+	defaultHeight, err := b.imagineQueue.GetDefaultBotHeight()
+	if err != nil {
+		log.Printf("error getting default height for settings command: %v", err)
+	}
+
+	minValues := 1
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Title:   "Settings",
+			Content: "Choose defaults settings for the imagine command:",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.SelectMenu{
+							CustomID:  "imagine_dimension_setting_menu",
+							MinValues: &minValues,
+							MaxValues: 1,
+							Options: []discordgo.SelectMenuOption{
+								{
+									Label:   "Size: 512x512",
+									Value:   "512_512",
+									Default: defaultWidth == 512 && defaultHeight == 512,
+								},
+								{
+									Label:   "Size: 768x768",
+									Value:   "768_768",
+									Default: defaultWidth == 768 && defaultHeight == 768,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
+	err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	if err != nil {
+		log.Printf("error updating default dimensions: %v", err)
+
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating default dimensions...",
+			},
+		})
+
+		return
+	}
+
+	minValues := 1
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Choose defaults settings for the imagine command:",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.SelectMenu{
+							CustomID:  "imagine_dimension_setting_menu",
+							MinValues: &minValues,
+							MaxValues: 1,
+							Options: []discordgo.SelectMenuOption{
+								{
+									Label:   "Size: 512x512",
+									Value:   "512_512",
+									Default: width == 512 && height == 512,
+								},
+								{
+									Label:   "Size: 768x768",
+									Value:   "768_768",
+									Default: width == 768 && height == 768,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	})
 }
