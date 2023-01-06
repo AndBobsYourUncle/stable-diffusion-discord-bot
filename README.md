@@ -38,7 +38,7 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
 
 Responds with a message that has buttons to allow updating of the default settings for the `/imagine` command.
 
-By default, the size is 512x512. However, if you are running Stable Diffusion 2.0, you might want to change this to 768x768.
+By default, the size is 512x512. However, if you are running the Stable Diffusion 2.0 768 model, you might want to change this to 768x768.
 
 Choosing an option will cause the bot to update the setting, and edit the message in place, allowing further edits.
 
