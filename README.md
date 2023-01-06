@@ -42,6 +42,8 @@ By default, the size is 512x512. However, if you are running Stable Diffusion 2.
 
 Clicking on a button will cause the bot to update the setting, and switch the button style to indicate that it is the new default.
 
+<img width="477" alt="Screenshot 2023-01-06 at 10 41 36 AM" src="https://user-images.githubusercontent.com/7525989/211077599-482536ef-1a70-4f58-abf0-314c773c64c6.png">
+
 ### `/imagine`
 
 Creates an image from a text prompt. (e.g. `/imagine cute kitten riding a skateboard`)
