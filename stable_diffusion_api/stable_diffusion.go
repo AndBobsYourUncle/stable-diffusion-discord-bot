@@ -207,3 +207,43 @@ func (api *apiImpl) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, 
 
 	return respStruct, nil
 }
+
+type ProgressResponse struct {
+	Progress    float64 `json:"progress"`
+	EtaRelative float64 `json:"eta_relative"`
+}
+
+func (api *apiImpl) GetCurrentProgress() (*ProgressResponse, error) {
+	getURL := api.host + "/sdapi/v1/progress"
+
+	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Error with API Request: %v", err)
+
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	respStruct := &ProgressResponse{}
+
+	err = json.Unmarshal(body, respStruct)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	return respStruct, nil
+}

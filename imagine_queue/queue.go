@@ -416,12 +416,22 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 	return generation, nil
 }
 
+func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
+	if progress >= 0 && progress < 1 {
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
+			user.ID, generation.Prompt, progress*100)
+	} else {
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
+			user.ID,
+			generation.Prompt,
+		)
+	}
+}
+
 func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
 	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
-	newContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them.",
-		imagine.DiscordInteraction.Member.User.ID,
-		newGeneration.Prompt)
+	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
 
 	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &newContent,
@@ -439,6 +449,37 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 	if err != nil {
 		log.Printf("Error creating image generation record: %v\n", err)
 	}
+
+	generationDone := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-generationDone:
+				return
+			case <-time.After(1 * time.Second):
+				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
+				if progressErr != nil {
+					log.Printf("Error getting current progress: %v", progressErr)
+
+					return
+				}
+
+				if progress.Progress == 0 {
+					continue
+				}
+
+				progressContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, progress.Progress)
+
+				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+					Content: &progressContent,
+				})
+				if progressErr != nil {
+					log.Printf("Error editing interaction: %v", err)
+				}
+			}
+		}
+	}()
 
 	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
 		Prompt:            newGeneration.Prompt,
@@ -471,10 +512,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		return err
 	}
 
-	finishedContent := fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
-		imagine.DiscordInteraction.Member.User.ID,
-		newGeneration.Prompt,
-	)
+	generationDone <- true
+
+	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
 
 	log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
 
@@ -675,6 +715,20 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 	return nil
 }
 
+func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress float64) string {
+	if fetchProgress >= 0 && fetchProgress <= 1 && upscaleProgress < 1 {
+		if upscaleProgress == 0 {
+			return fmt.Sprintf("Currently upscaling the image for you... Fetch progress: %.0f%%", fetchProgress*100)
+		} else {
+			return fmt.Sprintf("Currently upscaling the image for you... Fetch progress: %.0f%% Upscale progress: %.0f%%",
+				fetchProgress*100, upscaleProgress*100)
+		}
+	} else {
+		return fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
+			user.ID)
+	}
+}
+
 func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
@@ -694,6 +748,59 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	}
 
 	log.Printf("Found generation: %v", generation)
+
+	newContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, 0, 0)
+
+	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		Content: &newContent,
+	})
+	if err != nil {
+		log.Printf("Error editing interaction: %v", err)
+	}
+
+	generationDone := make(chan bool)
+
+	go func() {
+		lastProgress := float64(0)
+		fetchProgress := float64(0)
+		upscaleProgress := float64(0)
+
+		for {
+			select {
+			case <-generationDone:
+				return
+			case <-time.After(1 * time.Second):
+				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
+				if progressErr != nil {
+					log.Printf("Error getting current progress: %v", progressErr)
+
+					return
+				}
+
+				if progress.Progress == 0 {
+					continue
+				}
+
+				if progress.Progress < lastProgress || upscaleProgress > 0 {
+					upscaleProgress = progress.Progress
+					fetchProgress = 1
+				} else {
+					fetchProgress = progress.Progress
+				}
+
+				lastProgress = progress.Progress
+
+				progressContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
+
+				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+					Content: &progressContent,
+				})
+				if progressErr != nil {
+					log.Printf("Error editing interaction: %v", err)
+				}
+			}
+		}
+	}()
 
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
 		ResizeMode:      0,
@@ -730,6 +837,9 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 		return
 	}
+
+	generationDone <- true
+
 	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
 	if decodeErr != nil {
 		log.Printf("Error decoding image: %v\n", decodeErr)
