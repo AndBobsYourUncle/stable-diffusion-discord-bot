@@ -32,6 +32,8 @@ https://www.youtube.com/watch?v=of5MBh3ueMk
    * There needs to be no trailing slash after the port number (which is `7860` in this example). So, instead of `http://127.0.0.1:7860/`, it should be `http://127.0.0.1:7860`.
 5. The first run will generate a new SQLite DB file in the current working directory.
 
+The `-imagine <new command name>` flag can be used to have the bot use a different command when running, so that it doesn't collide with a Midjourney bot running on the same Discord server.
+
 ## Commands
 
 ### `/imagine_settings`
