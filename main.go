@@ -14,10 +14,11 @@ import (
 
 // Bot parameters
 var (
-	guildID     = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
-	botToken    = flag.String("token", "", "Bot access token")
-	apiHost     = flag.String("host", "", "Host for the Automatic1111 API")
-	devModeFlag = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
+	guildID        = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
+	botToken       = flag.String("token", "", "Bot access token")
+	apiHost        = flag.String("host", "", "Host for the Automatic1111 API")
+	imagineCommand = flag.String("imagine", "imagine", "Imagine command name. Default is \"imagine\"")
+	devModeFlag    = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 )
 
 func main() {
@@ -33,6 +34,10 @@ func main() {
 
 	if apiHost == nil || *apiHost == "" {
 		log.Fatalf("API host flag is required")
+	}
+
+	if imagineCommand == nil || *imagineCommand == "" {
+		log.Fatalf("Imagine command flag is required")
 	}
 
 	devMode := false
@@ -81,6 +86,7 @@ func main() {
 		BotToken:        *botToken,
 		GuildID:         *guildID,
 		ImagineQueue:    imagineQueue,
+		ImagineCommand:  *imagineCommand,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)

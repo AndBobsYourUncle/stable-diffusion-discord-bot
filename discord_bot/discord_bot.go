@@ -17,6 +17,7 @@ type botImpl struct {
 	guildID            string
 	imagineQueue       imagine_queue.Queue
 	registeredCommands []*discordgo.ApplicationCommand
+	imagineCommand     string
 }
 
 type Config struct {
@@ -24,22 +25,23 @@ type Config struct {
 	BotToken        string
 	GuildID         string
 	ImagineQueue    imagine_queue.Queue
+	ImagineCommand  string
 }
 
 func (b *botImpl) imagineCommandString() string {
 	if b.developmentMode {
-		return "dev_imagine"
+		return "dev_" + b.imagineCommand
 	}
 
-	return "imagine"
+	return b.imagineCommand
 }
 
 func (b *botImpl) imagineSettingsCommandString() string {
 	if b.developmentMode {
-		return "dev_imagine_settings"
+		return "dev_" + b.imagineCommand + "_settings"
 	}
 
-	return "imagine_settings"
+	return b.imagineCommand + "_settings"
 }
 
 func New(cfg Config) (Bot, error) {
@@ -53,6 +55,10 @@ func New(cfg Config) (Bot, error) {
 
 	if cfg.ImagineQueue == nil {
 		return nil, errors.New("missing imagine queue")
+	}
+
+	if cfg.ImagineCommand == "" {
+		return nil, errors.New("missing imagine command")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
@@ -73,6 +79,7 @@ func New(cfg Config) (Bot, error) {
 		botSession:         botSession,
 		imagineQueue:       cfg.ImagineQueue,
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
+		imagineCommand:     cfg.ImagineCommand,
 	}
 
 	err = bot.addImagineCommand()
@@ -172,7 +179,7 @@ func (b *botImpl) teardown() error {
 }
 
 func (b *botImpl) addImagineCommand() error {
-	log.Printf("Adding command 'imagine'...")
+	log.Printf("Adding command '%s'...", b.imagineCommandString())
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
 		Name:        b.imagineCommandString(),
@@ -198,7 +205,7 @@ func (b *botImpl) addImagineCommand() error {
 }
 
 func (b *botImpl) addImagineSettingsCommand() error {
-	log.Printf("Adding command 'imagine_settings'...")
+	log.Printf("Adding command '%s'...", b.imagineSettingsCommandString())
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
 		Name:        b.imagineSettingsCommandString(),
