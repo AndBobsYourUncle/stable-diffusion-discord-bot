@@ -14,11 +14,12 @@ import (
 
 // Bot parameters
 var (
-	guildID        = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
-	botToken       = flag.String("token", "", "Bot access token")
-	apiHost        = flag.String("host", "", "Host for the Automatic1111 API")
-	imagineCommand = flag.String("imagine", "imagine", "Imagine command name. Default is \"imagine\"")
-	devModeFlag    = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
+	guildID            = flag.String("guild", "", "Guild ID. If not passed - bot registers commands globally")
+	botToken           = flag.String("token", "", "Bot access token")
+	apiHost            = flag.String("host", "", "Host for the Automatic1111 API")
+	imagineCommand     = flag.String("imagine", "imagine", "Imagine command name. Default is \"imagine\"")
+	removeCommandsFlag = flag.Bool("remove", false, "Delete all commands when bot exits")
+	devModeFlag        = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 )
 
 func main() {
@@ -46,6 +47,12 @@ func main() {
 		devMode = *devModeFlag
 
 		log.Printf("Starting in development mode.. all commands prefixed with \"dev_\"")
+	}
+
+	removeCommands := false
+
+	if removeCommandsFlag != nil && *removeCommandsFlag {
+		removeCommands = *removeCommandsFlag
 	}
 
 	stableDiffusionAPI, err := stable_diffusion_api.New(stable_diffusion_api.Config{
@@ -87,6 +94,7 @@ func main() {
 		GuildID:         *guildID,
 		ImagineQueue:    imagineQueue,
 		ImagineCommand:  *imagineCommand,
+		RemoveCommands:  removeCommands,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)

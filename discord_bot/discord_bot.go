@@ -18,6 +18,7 @@ type botImpl struct {
 	imagineQueue       imagine_queue.Queue
 	registeredCommands []*discordgo.ApplicationCommand
 	imagineCommand     string
+	removeCommands     bool
 }
 
 type Config struct {
@@ -26,6 +27,7 @@ type Config struct {
 	GuildID         string
 	ImagineQueue    imagine_queue.Queue
 	ImagineCommand  string
+	RemoveCommands  bool
 }
 
 func (b *botImpl) imagineCommandString() string {
@@ -80,6 +82,7 @@ func New(cfg Config) (Bot, error) {
 		imagineQueue:       cfg.ImagineQueue,
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 		imagineCommand:     cfg.ImagineCommand,
+		removeCommands:     cfg.RemoveCommands,
 	}
 
 	err = bot.addImagineCommand()
@@ -176,12 +179,18 @@ func (b *botImpl) Start() {
 
 func (b *botImpl) teardown() error {
 	// Delete all commands added by the bot
-	// for _, v := range b.registeredCommands {
-	//	err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
-	//	if err != nil {
-	//		log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
-	//	}
-	// }
+	if b.removeCommands {
+		log.Printf("Removing all commands added by bot...")
+
+		for _, v := range b.registeredCommands {
+			log.Printf("Removing command '%v'...", v.Name)
+
+			err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
+			if err != nil {
+				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+			}
+		}
+	}
 
 	return b.botSession.Close()
 }
