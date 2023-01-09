@@ -175,6 +175,14 @@ func (b *botImpl) Start() {
 }
 
 func (b *botImpl) teardown() error {
+	// Delete all commands added by the bot
+	// for _, v := range b.registeredCommands {
+	//	err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
+	//	if err != nil {
+	//		log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+	//	}
+	// }
+
 	return b.botSession.Close()
 }
 
