@@ -202,7 +202,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 	})
 	if err != nil {
-		log.Printf("Error creating '%s' command: %v", cmd.Name, err)
+		log.Printf("Error creating '%s' command: %v", b.imagineCommandString(), err)
 
 		return err
 	}
