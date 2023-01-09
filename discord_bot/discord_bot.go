@@ -220,7 +220,7 @@ func (b *botImpl) addImagineSettingsCommand() error {
 		Description: "Change the default settings for the imagine command",
 	})
 	if err != nil {
-		log.Printf("Error creating '%s' command: %v", cmd.Name, err)
+		log.Printf("Error creating '%s' command: %v", b.imagineSettingsCommandString(), err)
 
 		return err
 	}
