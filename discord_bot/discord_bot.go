@@ -393,7 +393,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
@@ -403,6 +403,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				prompt),
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
 
 func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
@@ -513,25 +516,31 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseUpdateMessage,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Error updating default dimensions...",
 			},
 		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
 
 		return
 	}
 
 	messageComponents := settingsMessageComponents(botSettings)
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
 			Content:    "Choose defaults settings for the imagine command:",
 			Components: messageComponents,
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
 
 func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) {
@@ -539,23 +548,29 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 	if err != nil {
 		log.Printf("error updating batch settings: %v", err)
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseUpdateMessage,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Error updating batch settings...",
 			},
 		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
 
 		return
 	}
 
 	messageComponents := settingsMessageComponents(botSettings)
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
 			Content:    "Choose defaults settings for the imagine command:",
 			Components: messageComponents,
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
