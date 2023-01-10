@@ -176,7 +176,7 @@ func New(cfg Config) (Bot, error) {
 					return
 				}
 
-				batchSizeInt := 1
+				var batchSizeInt int
 
 				// calculate the corresponding batch size
 				switch batchCountInt {
@@ -209,7 +209,7 @@ func New(cfg Config) (Bot, error) {
 					return
 				}
 
-				batchCountInt := 1
+				var batchCountInt int
 
 				// calculate the corresponding batch count
 				switch batchSizeInt {
