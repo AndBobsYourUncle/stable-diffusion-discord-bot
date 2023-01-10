@@ -73,6 +73,15 @@ width INTEGER NOT NULL,
 height INTEGER NOT NULL
 );`
 
+const addSettingsBatchColumnsQuery string = `
+ALTER TABLE default_settings ADD COLUMN batch_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE default_settings ADD COLUMN batch_size INTEGER NOT NULL DEFAULT 0;
+`
+
+const addGenerationBatchSizeColumnQuery string = `
+ALTER TABLE image_generations ADD COLUMN batch_count INTEGER NOT NULL DEFAULT 0;
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -86,6 +95,8 @@ var migrations = []migration{
 	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
 	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
+	{migrationName: "add settings batch columns", migrationQuery: addSettingsBatchColumnsQuery},
+	{migrationName: "add generation batch count column", migrationQuery: addGenerationBatchSizeColumnQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

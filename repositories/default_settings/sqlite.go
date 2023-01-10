@@ -11,11 +11,11 @@ import (
 )
 
 const upsertSetting string = `
-INSERT OR REPLACE INTO default_settings (member_id, width, height) VALUES (?, ?, ?);
+INSERT OR REPLACE INTO default_settings (member_id, width, height, batch_count, batch_size) VALUES (?, ?, ?, ?, ?);
 `
 
 const getSettingByMemberID string = `
-SELECT member_id, width, height FROM default_settings WHERE member_id = ?;
+SELECT member_id, width, height, batch_count, batch_size FROM default_settings WHERE member_id = ?;
 `
 
 type sqliteRepo struct {
@@ -41,7 +41,8 @@ func NewRepository(cfg *Config) (Repository, error) {
 }
 
 func (repo *sqliteRepo) Upsert(ctx context.Context, setting *entities.DefaultSettings) (*entities.DefaultSettings, error) {
-	_, err := repo.dbConn.ExecContext(ctx, upsertSetting, setting.MemberID, setting.Width, setting.Height)
+	_, err := repo.dbConn.ExecContext(ctx, upsertSetting,
+		setting.MemberID, setting.Width, setting.Height, setting.BatchCount, setting.BatchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,8 @@ func (repo *sqliteRepo) Upsert(ctx context.Context, setting *entities.DefaultSet
 func (repo *sqliteRepo) GetByMemberID(ctx context.Context, memberID string) (*entities.DefaultSettings, error) {
 	var setting entities.DefaultSettings
 
-	err := repo.dbConn.QueryRowContext(ctx, getSettingByMemberID, memberID).Scan(&setting.MemberID, &setting.Width, &setting.Height)
+	err := repo.dbConn.QueryRowContext(ctx, getSettingByMemberID, memberID).Scan(
+		&setting.MemberID, &setting.Width, &setting.Height, &setting.BatchCount, &setting.BatchSize)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repositories.NewNotFoundError(fmt.Sprintf("default setting for member ID %s", memberID))
