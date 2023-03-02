@@ -22,6 +22,11 @@ func New(cfg Config) (StableDiffusionAPI, error) {
 		return nil, errors.New("missing host")
 	}
 
+	// remove trailing slash
+	if cfg.Host[len(cfg.Host)-1:] == "/" {
+		cfg.Host = cfg.Host[:len(cfg.Host)-1]
+	}
+
 	return &apiImpl{
 		host: cfg.Host,
 	}, nil
