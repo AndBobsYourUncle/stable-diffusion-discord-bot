@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"stable_diffusion_bot/imagine_queue"
 	"strconv"
 	"strings"
+
+	"stable_diffusion_bot/imagine_queue"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -301,6 +302,7 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 	}
 }
 
+// TODO: add option to enable usage in DM
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	options := i.ApplicationCommandData().Options
 
@@ -313,29 +315,43 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var queueError error
 	var prompt string
 
+	// Do not allow DM usage
+	isDM := i.GuildID == ""
+
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
 
-		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-			Prompt:             prompt,
-			Type:               imagine_queue.ItemTypeImagine,
-			DiscordInteraction: i.Interaction,
-		})
-		if queueError != nil {
-			log.Printf("Error adding imagine to queue: %v\n", queueError)
+		if !isDM {
+			position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+				Prompt:             prompt,
+				Type:               imagine_queue.ItemTypeImagine,
+				DiscordInteraction: i.Interaction,
+			})
+			if queueError != nil {
+				log.Printf("Error adding imagine to queue: %v\n", queueError)
+			}
 		}
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	message := "DM usage is not allowed."
+	if !isDM {
+		message = fmt.Sprintf(
+			"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
+			position,
+			i.Member.User.ID,
+			prompt,
+		)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf(
-				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
-				position,
-				i.Member.User.ID,
-				prompt),
+			Content: message,
 		},
 	})
+	if err != nil {
+		log.Printf("Error send interaction resp: %v\n", err)
+	}
 }
 
 func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
