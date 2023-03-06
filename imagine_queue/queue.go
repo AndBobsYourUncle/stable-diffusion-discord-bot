@@ -10,16 +10,17 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -85,8 +86,39 @@ const (
 	ItemTypeVariation
 )
 
+type QueueItemOptions struct {
+	Prompt            string
+	NegativePrompt    string
+	Width             int
+	Height            int
+	RestoreFaces      bool
+	EnableHR          bool
+	HiresWidth        int
+	HiresHeight       int
+	DenoisingStrength float64
+	SamplerName       string
+	CfgScale          float64
+	Steps             int
+	Seed              int
+}
+
+func NewQueueItemOptions() QueueItemOptions {
+	return QueueItemOptions{
+		NegativePrompt:    DefaultNegative,
+		RestoreFaces:      DefaultRestoreFaces,
+		EnableHR:          DefaultHiRes,
+		DenoisingStrength: DefaultDenoisingStrength,
+		SamplerName:       DefaultSampler,
+		CfgScale:          DefaultCFGScale,
+		Steps:             DefaultSteps,
+		Seed:              DefaultSeed,
+	}
+}
+
 type QueueItem struct {
+	// Deprecated
 	Prompt             string
+	Options            QueueItemOptions
 	Type               ItemType
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
@@ -296,6 +328,19 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 	}, nil
 }
 
+const (
+	DefaultCFGScale          = 9
+	DefaultDenoisingStrength = 0.7
+	DefaultNegative          = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+	DefaultRestoreFaces = true
+	DefaultSampler      = "Euler a"
+	DefaultSteps        = 20
+	DefaultSeed         = -1
+	DefaultHiRes        = true
+)
+
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
 		defer func() {
@@ -344,24 +389,22 @@ func (q *queueImpl) processCurrentImagine() {
 
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
-			Prompt: promptRes.SanitizedPrompt,
-			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+			Prompt:            promptRes.SanitizedPrompt,
+			NegativePrompt:    q.currentImagine.Options.NegativePrompt,
 			Width:             defaultWidth,
 			Height:            defaultHeight,
-			RestoreFaces:      true,
+			RestoreFaces:      q.currentImagine.Options.RestoreFaces,
 			EnableHR:          enableHR,
 			HiresWidth:        hiresWidth,
 			HiresHeight:       hiresHeight,
-			DenoisingStrength: 0.7,
+			DenoisingStrength: q.currentImagine.Options.DenoisingStrength,
 			BatchSize:         1,
-			Seed:              -1,
+			Seed:              q.currentImagine.Options.Seed,
 			Subseed:           -1,
 			SubseedStrength:   0,
-			SamplerName:       "Euler a",
-			CfgScale:          9,
-			Steps:             20,
+			SamplerName:       q.currentImagine.Options.SamplerName,
+			CfgScale:          q.currentImagine.Options.CfgScale,
+			Steps:             q.currentImagine.Options.Steps,
 			Processed:         false,
 		}
 
@@ -583,19 +626,6 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "Re-roll",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.PrimaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_reroll",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "🎲",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
 						Label: "V1",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
@@ -644,6 +674,19 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 						CustomID: "imagine_variation_4",
 						Emoji: discordgo.ComponentEmoji{
 							Name: "♻️",
+						},
+					},
+					discordgo.Button{
+						// Label is what the user will see on the button.
+						Label: "Re-roll",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.PrimaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_reroll",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "🎲",
 						},
 					},
 				},
