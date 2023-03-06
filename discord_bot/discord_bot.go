@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"stable_diffusion_bot/imagine_queue"
 	"strconv"
 	"strings"
+
+	"stable_diffusion_bot/imagine_queue"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -36,6 +37,15 @@ func (b *botImpl) imagineCommandString() string {
 	}
 
 	return b.imagineCommand
+}
+
+func (b *botImpl) imagineExtCommandString() string {
+	prefix := ``
+	if b.developmentMode {
+		prefix = `dev_`
+	}
+
+	return prefix + b.imagineCommand + `_ext`
 }
 
 func (b *botImpl) imagineSettingsCommandString() string {
@@ -90,6 +100,11 @@ func New(cfg Config) (Bot, error) {
 		return nil, err
 	}
 
+	err = bot.addImagineExtCommand()
+	if err != nil {
+		return nil, err
+	}
+
 	err = bot.addImagineSettingsCommand()
 	if err != nil {
 		return nil, err
@@ -101,6 +116,8 @@ func New(cfg Config) (Bot, error) {
 			switch i.ApplicationCommandData().Name {
 			case bot.imagineCommandString():
 				bot.processImagineCommand(s, i)
+			case bot.imagineExtCommandString():
+				bot.processImagineExtCommand(s, i)
 			case bot.imagineSettingsCommandString():
 				bot.processImagineSettingsCommand(s, i)
 			default:
@@ -221,6 +238,101 @@ func (b *botImpl) addImagineCommand() error {
 	return nil
 }
 
+const (
+	extOptionAR             = `aspect_ratio`
+	extOptionCFGScale       = `cfg_scale`
+	extOptionNegativePrompt = `negative_prompt`
+	extOptionPrompt         = `prompt`
+	extOptionRestoreFaces   = `restore_faces`
+	extOptionSeed           = `seed`
+)
+
+func (b *botImpl) addImagineExtCommand() error {
+	command := b.imagineExtCommandString()
+	log.Printf("Adding command '%s'...", command)
+
+	minNum := 1.0
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+		Name:        command,
+		Description: "Ask the bot to imagine something",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        extOptionPrompt,
+				Description: "The text prompt to imagine",
+				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        extOptionAR,
+				Description: "Aspect Ratio",
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "4:3  (horizontal, 688×512)",
+						Value: "--ar 4:3",
+					},
+					{
+						Name:  "16:10 (horizontal wide, 824×512)",
+						Value: "--ar 16:10",
+					},
+					{
+						Name:  "16:9 (horizontal wide, 912×512)",
+						Value: "--ar 16:9",
+					},
+					{
+						Name:  "3:4 (vertical, 512×688)",
+						Value: "--ar 3:4",
+					},
+					{
+						Name:  "10:16 (vertical narrow, 512×824)",
+						Value: "--ar 10:16",
+					},
+					{
+						Name:  "9:16 (vertical narrow, 512×912)",
+						Value: "--ar 9:16",
+					},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        extOptionNegativePrompt,
+				Description: "Negative prompt",
+				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionBoolean,
+				Name:        extOptionRestoreFaces,
+				Description: "Restore faces" + fmt.Sprintf(" (%v)", imagine_queue.DefaultRestoreFaces),
+				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionNumber,
+				Name:        extOptionCFGScale,
+				Description: fmt.Sprintf("CFG Scale (%d)", imagine_queue.DefaultCFGScale),
+				Required:    false,
+				MinValue:    &minNum,
+				MaxValue:    30,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        extOptionSeed,
+				Description: fmt.Sprintf("Seed (%d)", imagine_queue.DefaultSeed),
+				Required:    false,
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error creating '%s' command: %v", command, err)
+
+		return err
+	}
+
+	b.registeredCommands = append(b.registeredCommands, cmd)
+
+	return nil
+}
+
 func (b *botImpl) addImagineSettingsCommand() error {
 	log.Printf("Adding command '%s'...", b.imagineSettingsCommandString())
 
@@ -318,6 +430,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
+			Options:            imagine_queue.NewQueueItemOptions(),
 			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})
@@ -336,6 +449,71 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				prompt),
 		},
 	})
+}
+
+func (b *botImpl) processImagineExtCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	options := i.ApplicationCommandData().Options
+
+	queueOptions := imagine_queue.NewQueueItemOptions()
+	aspectRatio := ""
+	for _, opt := range options {
+		switch opt.Name {
+		case extOptionAR:
+			aspectRatio = opt.StringValue()
+
+			if aspectRatio != "" {
+				queueOptions.Prompt += ` ` + aspectRatio
+			}
+		case extOptionPrompt:
+			queueOptions.Prompt = opt.StringValue()
+		case extOptionNegativePrompt:
+			queueOptions.NegativePrompt = opt.StringValue()
+		case extOptionRestoreFaces:
+			queueOptions.RestoreFaces = opt.BoolValue()
+		case extOptionCFGScale:
+			queueOptions.CfgScale = opt.FloatValue()
+		case extOptionSeed:
+			queueOptions.Seed = int(opt.IntValue())
+		}
+	}
+
+	var position int
+	var queueError error
+
+	// Do not allow DM usage
+	isDM := i.GuildID == ""
+
+	if !isDM {
+		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+			Prompt:             queueOptions.Prompt,
+			Options:            queueOptions,
+			Type:               imagine_queue.ItemTypeImagine,
+			DiscordInteraction: i.Interaction,
+		})
+		if queueError != nil {
+			log.Printf("Error adding imagine to queue: %v\n", queueError)
+		}
+	}
+
+	message := "DM usage is not allowed."
+	if !isDM {
+		message = fmt.Sprintf(
+			"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine `%s`.",
+			position,
+			i.Member.User.ID,
+			queueOptions.Prompt,
+		)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: message,
+		},
+	})
+	if err != nil {
+		log.Printf("Error send interaction resp: %v\n", err)
+	}
 }
 
 func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
