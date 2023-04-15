@@ -326,13 +326,21 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
+	userID := ""
+
+	if i.Member != nil {
+		userID = i.Member.User.ID
+	} else if i.User != nil {
+		userID = i.User.ID
+	}
+
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
 				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
 				position,
-				i.Member.User.ID,
+				userID,
 				prompt),
 		},
 	})
