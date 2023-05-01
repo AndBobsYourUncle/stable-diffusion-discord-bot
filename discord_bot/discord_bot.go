@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
 	"strconv"
 	"strings"
@@ -159,6 +160,72 @@ func New(cfg Config) (Bot, error) {
 				}
 
 				bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
+			case customID == "imagine_batch_count_setting_menu":
+				if len(i.MessageComponentData().Values) == 0 {
+					log.Printf("No values for imagine batch count setting menu")
+
+					return
+				}
+
+				batchCount := i.MessageComponentData().Values[0]
+
+				batchCountInt, intErr := strconv.Atoi(batchCount)
+				if intErr != nil {
+					log.Printf("Error parsing batch count: %v", err)
+
+					return
+				}
+
+				var batchSizeInt int
+
+				// calculate the corresponding batch size
+				switch batchCountInt {
+				case 1:
+					batchSizeInt = 4
+				case 2:
+					batchSizeInt = 2
+				case 4:
+					batchSizeInt = 1
+				default:
+					log.Printf("Unknown batch count: %v", batchCountInt)
+
+					return
+				}
+
+				bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
+			case customID == "imagine_batch_size_setting_menu":
+				if len(i.MessageComponentData().Values) == 0 {
+					log.Printf("No values for imagine batch count setting menu")
+
+					return
+				}
+
+				batchSize := i.MessageComponentData().Values[0]
+
+				batchSizeInt, intErr := strconv.Atoi(batchSize)
+				if intErr != nil {
+					log.Printf("Error parsing batch count: %v", err)
+
+					return
+				}
+
+				var batchCountInt int
+
+				// calculate the corresponding batch count
+				switch batchSizeInt {
+				case 1:
+					batchCountInt = 4
+				case 2:
+					batchCountInt = 2
+				case 4:
+					batchCountInt = 1
+				default:
+					log.Printf("Unknown batch size: %v", batchSizeInt)
+
+					return
+				}
+
+				bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 			default:
 				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 			}
@@ -326,7 +393,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
@@ -336,49 +403,107 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				prompt),
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
 
-func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	defaultWidth, err := b.imagineQueue.GetDefaultBotWidth()
-	if err != nil {
-		log.Printf("error getting default width for settings command: %v", err)
-	}
-
-	defaultHeight, err := b.imagineQueue.GetDefaultBotHeight()
-	if err != nil {
-		log.Printf("error getting default height for settings command: %v", err)
-	}
-
+func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
 	minValues := 1
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Title:   "Settings",
-			Content: "Choose defaults settings for the imagine command:",
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.SelectMenu{
-							CustomID:  "imagine_dimension_setting_menu",
-							MinValues: &minValues,
-							MaxValues: 1,
-							Options: []discordgo.SelectMenuOption{
-								{
-									Label:   "Size: 512x512",
-									Value:   "512_512",
-									Default: defaultWidth == 512 && defaultHeight == 512,
-								},
-								{
-									Label:   "Size: 768x768",
-									Value:   "768_768",
-									Default: defaultWidth == 768 && defaultHeight == 768,
-								},
-							},
+				discordgo.SelectMenu{
+					CustomID:  "imagine_dimension_setting_menu",
+					MinValues: &minValues,
+					MaxValues: 1,
+					Options: []discordgo.SelectMenuOption{
+						{
+							Label:   "Size: 512x512",
+							Value:   "512_512",
+							Default: settings.Width == 512 && settings.Height == 512,
+						},
+						{
+							Label:   "Size: 768x768",
+							Value:   "768_768",
+							Default: settings.Width == 768 && settings.Height == 768,
 						},
 					},
 				},
 			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.SelectMenu{
+					CustomID:  "imagine_batch_count_setting_menu",
+					MinValues: &minValues,
+					MaxValues: 1,
+					Options: []discordgo.SelectMenuOption{
+						{
+							Label:   "Batch count: 1",
+							Value:   "1",
+							Default: settings.BatchCount == 1,
+						},
+						{
+							Label:   "Batch count: 2",
+							Value:   "2",
+							Default: settings.BatchCount == 2,
+						},
+						{
+							Label:   "Batch count: 4",
+							Value:   "4",
+							Default: settings.BatchCount == 4,
+						},
+					},
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.SelectMenu{
+					CustomID:  "imagine_batch_size_setting_menu",
+					MinValues: &minValues,
+					MaxValues: 1,
+					Options: []discordgo.SelectMenuOption{
+						{
+							Label:   "Batch size: 1",
+							Value:   "1",
+							Default: settings.BatchSize == 1,
+						},
+						{
+							Label:   "Batch size: 2",
+							Value:   "2",
+							Default: settings.BatchSize == 2,
+						},
+						{
+							Label:   "Batch size: 4",
+							Value:   "4",
+							Default: settings.BatchSize == 4,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
+	if err != nil {
+		log.Printf("error getting default settings for settings command: %v", err)
+
+		return
+	}
+
+	messageComponents := settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Title:      "Settings",
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
 		},
 	})
 	if err != nil {
@@ -387,49 +512,65 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 }
 
 func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
-	err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseUpdateMessage,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Error updating default dimensions...",
 			},
 		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
 
 		return
 	}
 
-	minValues := 1
+	messageComponents := settingsMessageComponents(botSettings)
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Choose defaults settings for the imagine command:",
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.SelectMenu{
-							CustomID:  "imagine_dimension_setting_menu",
-							MinValues: &minValues,
-							MaxValues: 1,
-							Options: []discordgo.SelectMenuOption{
-								{
-									Label:   "Size: 512x512",
-									Value:   "512_512",
-									Default: width == 512 && height == 512,
-								},
-								{
-									Label:   "Size: 768x768",
-									Value:   "768_768",
-									Default: width == 768 && height == 768,
-								},
-							},
-						},
-					},
-				},
-			},
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) {
+	botSettings, err := b.imagineQueue.UpdateDefaultBatch(batchCount, batchSize)
+	if err != nil {
+		log.Printf("error updating batch settings: %v", err)
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating batch settings...",
+			},
+		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
+
+		return
+	}
+
+	messageComponents := settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
