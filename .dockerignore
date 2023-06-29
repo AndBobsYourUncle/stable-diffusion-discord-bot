@@ -1,4 +1,4 @@
 .env
 Dockerfile
 docker-compose.yml
-
+sd_discord_bot.sqlite

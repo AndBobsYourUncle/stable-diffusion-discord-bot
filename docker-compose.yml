@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    volumes:
+      - ./sd_discord_bot.sqlite:/app/sd_discord_bot.sqlite
     env_file:
       - .env
     command: -token ${DISCORD_TOKEN} -host ${SD_URL} -guild ${DISCORD_GUILD}
