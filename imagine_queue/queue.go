@@ -89,6 +89,7 @@ const (
 
 type QueueItem struct {
 	Prompt             string
+	NegativePrompt     string
 	Type               ItemType
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
@@ -394,6 +395,18 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
+		defaultNegativePrompt := "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+			"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+			"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+
+		var negativePrompt string
+
+		if q.currentImagine.NegativePrompt != "" {
+			negativePrompt = q.currentImagine.NegativePrompt
+		} else {
+			negativePrompt = defaultNegativePrompt
+		}
+
 		enableHR := false
 		hiresWidth := 0
 		hiresHeight := 0
@@ -406,10 +419,8 @@ func (q *queueImpl) processCurrentImagine() {
 
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
-			Prompt: promptRes.SanitizedPrompt,
-			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+			Prompt:            promptRes.SanitizedPrompt,
+			NegativePrompt:    negativePrompt,
 			Width:             defaultWidth,
 			Height:            defaultHeight,
 			RestoreFaces:      true,
@@ -479,12 +490,13 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 
 func imagineMessageContent(generation *entities.ImageGeneration, userID string, progress float64) string {
 	if progress >= 0 && progress < 1 {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
-			userID, generation.Prompt, progress*100)
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" without \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
+			userID, generation.Prompt, generation.NegativePrompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" without \"%s\", here is what I imagined for them.",
 			userID,
 			generation.Prompt,
+			generation.NegativePrompt,
 		)
 	}
 }
@@ -831,7 +843,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		userID = imagine.DiscordInteraction.Member.User.ID
 	} else if imagine.DiscordInteraction.User != nil {
 		userID = imagine.DiscordInteraction.User.ID
-	}	
+	}
 
 	log.Printf("Upscaling image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)

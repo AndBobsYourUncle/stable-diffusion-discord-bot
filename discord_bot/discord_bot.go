@@ -275,7 +275,12 @@ func (b *botImpl) addImagineCommand() error {
 				Description: "The text prompt to imagine",
 				Required:    true,
 			},
-		},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "negative",
+				Description: "Negative prompt",
+				Required:    false,
+			}},
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", b.imagineCommandString(), err)
@@ -379,18 +384,33 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var position int
 	var queueError error
 	var prompt string
+	var negative string
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
+	}
 
+	if option, ok := optionMap["negative"]; ok {
+		negative = option.StringValue()
+	}
+
+	if negative != "" && prompt != "" {
+		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+			Prompt:             prompt,
+			NegativePrompt:     negative,
+			Type:               imagine_queue.ItemTypeImagine,
+			DiscordInteraction: i.Interaction,
+		})
+	} else if prompt != "" {
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
 			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})
-		if queueError != nil {
-			log.Printf("Error adding imagine to queue: %v\n", queueError)
-		}
+	}
+
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
 	}
 
 	userID := ""
@@ -405,10 +425,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
-				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
+				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\" without \"%s\".",
 				position,
 				userID,
-				prompt),
+				prompt,
+				negative),
 		},
 	})
 	if err != nil {
