@@ -477,22 +477,32 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 	return generation, nil
 }
 
-func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
+func imagineMessageContent(generation *entities.ImageGeneration, userID string, progress float64) string {
 	if progress >= 0 && progress < 1 {
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
-			user.ID, generation.Prompt, progress*100)
+			userID, generation.Prompt, progress*100)
 	} else {
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
-			user.ID,
+			userID,
 			generation.Prompt,
 		)
 	}
 }
 
 func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
-	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
-	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
+	interactionID := imagine.DiscordInteraction.ID
+	userID := ""
+
+	if imagine.DiscordInteraction.Member != nil && imagine.DiscordInteraction.Member.User != nil {
+		userID = imagine.DiscordInteraction.Member.User.ID
+	} else if imagine.DiscordInteraction.User != nil {
+		userID = imagine.DiscordInteraction.User.ID
+	}
+
+	log.Printf("Processing imagine #%s: %v\n", interactionID, newGeneration.Prompt)
+
+	newContent := imagineMessageContent(newGeneration, userID, 0)
 
 	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &newContent,
@@ -515,9 +525,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		return err
 	}
 
-	newGeneration.InteractionID = imagine.DiscordInteraction.ID
+	newGeneration.InteractionID = interactionID
 	newGeneration.MessageID = message.ID
-	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
+	newGeneration.MemberID = userID
 	newGeneration.SortOrder = 0
 	newGeneration.BatchCount = defaultBatchCount
 	newGeneration.BatchSize = defaultBatchSize
@@ -547,7 +557,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					continue
 				}
 
-				progressContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, progress.Progress)
+				progressContent := imagineMessageContent(newGeneration, userID, progress.Progress)
 
 				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 					Content: &progressContent,
@@ -592,7 +602,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 	generationDone <- true
 
-	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
+	finishedContent := imagineMessageContent(newGeneration, userID, 1)
 
 	log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
 
@@ -794,7 +804,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 	return nil
 }
 
-func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress float64) string {
+func upscaleMessageContent(userID string, fetchProgress, upscaleProgress float64) string {
 	if fetchProgress >= 0 && fetchProgress <= 1 && upscaleProgress < 1 {
 		if upscaleProgress == 0 {
 			return fmt.Sprintf("Currently upscaling the image for you... Fetch progress: %.0f%%", fetchProgress*100)
@@ -804,17 +814,24 @@ func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress 
 		}
 	} else {
 		return fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
-			user.ID)
+			userID)
 	}
 }
 
 func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
+	userID := ""
 
 	if imagine.DiscordInteraction.Message != nil {
 		messageID = imagine.DiscordInteraction.Message.ID
 	}
+
+	if imagine.DiscordInteraction.Member != nil && imagine.DiscordInteraction.Member.User != nil {
+		userID = imagine.DiscordInteraction.Member.User.ID
+	} else if imagine.DiscordInteraction.User != nil {
+		userID = imagine.DiscordInteraction.User.ID
+	}	
 
 	log.Printf("Upscaling image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)
@@ -828,7 +845,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 	log.Printf("Found generation: %v", generation)
 
-	newContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, 0, 0)
+	newContent := upscaleMessageContent(userID, 0, 0)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &newContent,
@@ -869,7 +886,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 				lastProgress = progress.Progress
 
-				progressContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
+				progressContent := upscaleMessageContent(userID, fetchProgress, upscaleProgress)
 
 				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 					Content: &progressContent,
@@ -932,7 +949,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		interactionID, messageID, imagine.InteractionIndex)
 
 	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
-		imagine.DiscordInteraction.Member.User.ID)
+		userID)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
