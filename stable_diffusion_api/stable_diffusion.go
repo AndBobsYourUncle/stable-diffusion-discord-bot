@@ -127,7 +127,7 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 type UpscaleRequest struct {
 	ResizeMode         int                 `json:"resize_mode"`
 	UpscalingResize    int                 `json:"upscaling_resize"`
-	Upscaler1          string              `json:"upscaler1"`
+	Upscaler1          string              `json:"upscaler_1"`
 	TextToImageRequest *TextToImageRequest `json:"text_to_image_request"`
 }
 
