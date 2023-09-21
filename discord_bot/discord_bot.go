@@ -429,6 +429,11 @@ func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.M
 							Value:   "768_768",
 							Default: settings.Width == 768 && settings.Height == 768,
 						},
+						{
+							Label:   "Size: 1024x1024",
+							Value:   "1024_1024",
+							Default: settings.Width == 1024 && settings.Height == 1024,
+						},
 					},
 				},
 			},
