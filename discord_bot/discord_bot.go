@@ -458,6 +458,11 @@ func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.M
 							Value:   "768_768",
 							Default: settings.Width == 768 && settings.Height == 768,
 						},
+						{
+							Label:   "Size: 636x1136",
+							Value:   "636_1136",
+							Default: settings.Width == 636 && settings.Height == 1136,
+						},
 					},
 				},
 			},
@@ -541,7 +546,7 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 }
 
 func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
-	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(height, width)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
