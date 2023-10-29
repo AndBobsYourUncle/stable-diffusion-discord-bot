@@ -31,6 +31,10 @@ const (
 	initializedHeight     = 512
 	initializedBatchCount = 4
 	initializedBatchSize  = 1
+
+	defaultNegativePrompt = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy, asian"
 )
 
 type queueImpl struct {
@@ -179,6 +183,11 @@ func (q *queueImpl) fillInBotDefaults(settings *entities.DefaultSettings) (*enti
 
 	if settings.BatchSize == 0 {
 		settings.BatchSize = initializedBatchSize
+		updated = true
+	}
+
+	if settings.NegativePrompt == "" {
+		settings.NegativePrompt = defaultNegativePrompt
 		updated = true
 	}
 
@@ -395,16 +404,12 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		defaultNegativePrompt := "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-			"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-			"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
-
 		var negativePrompt string
 
 		if q.currentImagine.NegativePrompt != "" {
 			negativePrompt = q.currentImagine.NegativePrompt
 		} else {
-			negativePrompt = defaultNegativePrompt
+			negativePrompt = q.botDefaultSettings.NegativePrompt
 		}
 
 		enableHR := false
