@@ -275,7 +275,12 @@ func (b *botImpl) addImagineCommand() error {
 				Description: "The text prompt to imagine",
 				Required:    true,
 			},
-		},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "negative",
+				Description: "Negative prompt",
+				Required:    false,
+			}},
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", b.imagineCommandString(), err)
@@ -379,28 +384,52 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var position int
 	var queueError error
 	var prompt string
+	var negative string
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
+	}
 
+	if option, ok := optionMap["negative"]; ok {
+		negative = option.StringValue()
+	}
+
+	if negative != "" && prompt != "" {
+		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+			Prompt:             prompt,
+			NegativePrompt:     negative,
+			Type:               imagine_queue.ItemTypeImagine,
+			DiscordInteraction: i.Interaction,
+		})
+	} else if prompt != "" {
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
 			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})
-		if queueError != nil {
-			log.Printf("Error adding imagine to queue: %v\n", queueError)
-		}
+	}
+
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	userID := ""
+
+	if i.Member != nil {
+		userID = i.Member.User.ID
+	} else if i.User != nil {
+		userID = i.User.ID
 	}
 
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
-				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
+				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\" without \"%s\".",
 				position,
-				i.Member.User.ID,
-				prompt),
+				userID,
+				prompt,
+				negative),
 		},
 	})
 	if err != nil {
@@ -428,6 +457,11 @@ func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.M
 							Label:   "Size: 768x768",
 							Value:   "768_768",
 							Default: settings.Width == 768 && settings.Height == 768,
+						},
+						{
+							Label:   "Size: 636x1136",
+							Value:   "636_1136",
+							Default: settings.Width == 636 && settings.Height == 1136,
 						},
 					},
 				},
@@ -512,7 +546,7 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 }
 
 func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
-	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(height, width)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
