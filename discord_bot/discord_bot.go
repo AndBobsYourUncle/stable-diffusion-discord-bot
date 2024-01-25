@@ -511,7 +511,7 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 	}
 }
 
-func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
+func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, width, height int) {
 	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
